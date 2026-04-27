@@ -59,7 +59,7 @@ async function handleSheetRequest(text, event, client) {
   return true;
 }
 
-// Handles all regular messages (non-mention)
+// Handles all regular messages (non-mention) including DMs
 app.event('message', async ({ event, client }) => {
   const myId = await getJordanUserId();
   if (event.bot_id || event.subtype || event.user === myId) return;
@@ -67,39 +67,63 @@ app.event('message', async ({ event, client }) => {
   const text = event.text?.trim();
   if (!text) return;
 
-  // Always ingest into memory
-  await upsertMemory({
-    id: `slack_${event.channel}_${event.ts}`,
-    sourceType: 'slack_message',
-    sourceRef: event.thread_ts || event.ts,
-    contentText: text,
-    author: event.user,
-    timestamp: new Date(parseFloat(event.ts) * 1000).toISOString(),
-    channelId: event.channel,
-  });
+  const isDM = event.channel_type === 'im';
 
-  const threadKey = event.thread_ts ? `${event.channel}:${event.thread_ts}` : null;
-  const isInJordanThread = threadKey && activeThreads.has(threadKey);
+  // Always ingest into memory (skip DMs - they're private, not team context)
+  if (!isDM) {
+    await upsertMemory({
+      id: `slack_${event.channel}_${event.ts}`,
+      sourceType: 'slack_message',
+      sourceRef: event.thread_ts || event.ts,
+      contentText: text,
+      author: event.user,
+      timestamp: new Date(parseFloat(event.ts) * 1000).toISOString(),
+      channelId: event.channel,
+    });
+  }
 
-  if (isInJordanThread) {
-    // Someone replied in a thread Jordan is already part of - respond without needing a mention
+  // DMs: always respond directly, no classifier needed
+  if (isDM) {
     const handled = await handleSheetRequest(text, event, client);
     if (!handled) {
       const reply = await buildResponse(text, { channelId: event.channel });
-      await postReply(client, event.channel, event.thread_ts, reply);
+      await client.chat.postMessage({ channel: event.channel, text: reply });
     }
     return;
   }
 
-  // Top-level channel message - only respond proactively if confident
-  if (event.thread_ts) return; // thread Jordan hasn't been in - ingest only
+  const threadKey = event.thread_ts ? `${event.channel}:${event.thread_ts}` : null;
+  const isInJordanThread = threadKey && activeThreads.has(threadKey);
 
-  const { shouldRespond: respond, confidence, reason } = await shouldRespond(text);
-  console.log(`[classify] confidence=${confidence} respond=${respond} reason="${reason}"`);
+  // Build classifier context: include thread topic if this is a reply in a Jordan thread
+  let classifyText = text;
+  if (isInJordanThread && event.thread_ts) {
+    try {
+      const threadRes = await client.conversations.replies({
+        channel: event.channel,
+        ts: event.thread_ts,
+        limit: 6,
+      });
+      const prior = (threadRes.messages || [])
+        .filter(m => m.ts !== event.ts)
+        .map(m => m.text)
+        .join('\n');
+      if (prior) classifyText = `Thread context:\n${prior}\n\nNew message: ${text}`;
+    } catch { /* ingest only if fetch fails */ }
+  }
 
-  if (respond) {
-    const reply = await buildResponse(text, { channelId: event.channel });
-    await postReply(client, event.channel, event.ts, reply);
+  // Respond to top-level channel messages and threads Jordan is already in
+  if (!event.thread_ts || isInJordanThread) {
+    const { shouldRespond: respond, confidence, reason } = await shouldRespond(classifyText);
+    console.log(`[classify] confidence=${confidence} respond=${respond} reason="${reason}"`);
+
+    if (respond) {
+      const handled = await handleSheetRequest(text, event, client);
+      if (!handled) {
+        const reply = await buildResponse(classifyText, { channelId: event.channel });
+        await postReply(client, event.channel, event.thread_ts || event.ts, reply);
+      }
+    }
   }
 });
 
