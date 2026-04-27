@@ -1,11 +1,15 @@
-import OpenAI from 'openai';
+import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const client = new BedrockRuntimeClient({ region: process.env.AWS_REGION || 'us-east-1' });
 
 export async function embed(text) {
-  const response = await openai.embeddings.create({
-    model: 'text-embedding-3-small',
-    input: text.slice(0, 8000),
+  const command = new InvokeModelCommand({
+    modelId: 'amazon.titan-embed-text-v2:0',
+    contentType: 'application/json',
+    accept: 'application/json',
+    body: JSON.stringify({ inputText: text.slice(0, 8000), dimensions: 1536, normalize: true }),
   });
-  return response.data[0].embedding;
+  const response = await client.send(command);
+  const result = JSON.parse(Buffer.from(response.body).toString());
+  return result.embedding;
 }

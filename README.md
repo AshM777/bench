@@ -39,8 +39,7 @@ Jordan was never asked to watch the channel. Jordan was just there.
 - Node.js 18+
 - A [Supabase](https://supabase.com) project (free tier works)
 - A Slack app (see setup below)
-- AWS Bedrock access with Claude models enabled (`us-east-1` recommended)
-- An OpenAI API key (for embeddings only — `text-embedding-3-small`)
+- AWS Bedrock access with Claude models enabled and Amazon Titan Embed V2 enabled (`us-east-1` recommended)
 
 ---
 
@@ -165,4 +164,4 @@ bench/
 
 MIT — see [LICENSE](LICENSE).
 
-Built with [Slack Bolt](https://github.com/slackapi/bolt-js), [Anthropic Claude via AWS Bedrock](https://docs.anthropic.com/en/api/claude-on-amazon-bedrock), [Supabase pgvector](https://supabase.com/docs/guides/ai/vector-columns), and [Google Sheets API](https://developers.google.com/sheets/api).
+Built with [Slack Bolt](https://github.com/slackapi/bolt-js), [Anthropic Claude + Amazon Titan Embed via AWS Bedrock](https://docs.anthropic.com/en/api/claude-on-amazon-bedrock), [Supabase pgvector](https://supabase.com/docs/guides/ai/vector-columns), and [Google Sheets API](https://developers.google.com/sheets/api).
