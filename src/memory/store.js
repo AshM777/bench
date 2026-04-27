@@ -15,7 +15,7 @@ export async function upsertMemory({ id, sourceType, sourceRef, contentText, aut
     content_text: contentText,
     content_embedding: embedding,
     author,
-    timestamp,
+    recorded_at: timestamp,
     channel_id: channelId,
   });
   if (error) throw error;

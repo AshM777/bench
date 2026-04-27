@@ -2,7 +2,8 @@ import { App } from '@slack/bolt';
 import { upsertMemory } from './memory/store.js';
 import { buildResponse } from './engine/respond.js';
 import { shouldRespond } from './engine/classify.js';
-import { ingestAllSheets } from './tools/sheets.js';
+import { ingestAllSheets, createSheet, writeSheet } from './tools/sheets.js';
+import { buildSummarySheet } from './engine/summarise.js';
 
 const app = new App({
   token: process.env.SLACK_BOT_TOKEN,
@@ -11,7 +12,6 @@ const app = new App({
   socketMode: true,
 });
 
-// Jordan's own Slack user ID - set after first run
 let jordanUserId = null;
 
 async function getJordanUserId() {
@@ -24,14 +24,11 @@ async function getJordanUserId() {
 // Ingest every message into memory
 app.event('message', async ({ event, client }) => {
   const myId = await getJordanUserId();
-
-  // Skip Jordan's own messages, bot messages, and edits
   if (event.bot_id || event.subtype || event.user === myId) return;
 
   const text = event.text?.trim();
   if (!text) return;
 
-  // Store in memory
   await upsertMemory({
     id: `slack_${event.channel}_${event.ts}`,
     sourceType: 'slack_message',
@@ -42,7 +39,6 @@ app.event('message', async ({ event, client }) => {
     channelId: event.channel,
   });
 
-  // Decide whether to respond proactively (skip if in a thread reply to avoid spam)
   if (event.thread_ts) return;
 
   const { shouldRespond: respond, confidence, reason } = await shouldRespond(text);
@@ -50,33 +46,62 @@ app.event('message', async ({ event, client }) => {
 
   if (respond) {
     const reply = await buildResponse(text, { channelId: event.channel });
-    await client.chat.postMessage({
-      channel: event.channel,
-      thread_ts: event.ts,
-      text: reply,
-    });
+    await client.chat.postMessage({ channel: event.channel, thread_ts: event.ts, text: reply });
   }
 });
 
 // Always respond when @mentioned
 app.event('app_mention', async ({ event, client }) => {
   const text = event.text?.replace(/<@[A-Z0-9]+>/g, '').trim();
+  const lowerText = text.toLowerCase();
+
+  // Handle "create a summary/dashboard/pivot" requests
+  const wantsSheet =
+    lowerText.includes('summary') ||
+    lowerText.includes('dashboard') ||
+    lowerText.includes('pivot') ||
+    lowerText.includes('create a sheet') ||
+    lowerText.includes('new sheet') ||
+    lowerText.includes('create a tab');
+
+  const spreadsheetId = process.env.SHEETS_CONFIG?.split(',')[0]?.split(':')[0];
+
+  if (wantsSheet && spreadsheetId) {
+    await client.chat.postMessage({
+      channel: event.channel,
+      thread_ts: event.ts,
+      text: 'On it. Building the summary sheet now, give me a moment.',
+    });
+
+    try {
+      const { sheetName, rows } = await buildSummarySheet(text, spreadsheetId);
+      await createSheet(spreadsheetId, sheetName);
+      await writeSheet(spreadsheetId, sheetName, rows);
+
+      const sheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}`;
+      await client.chat.postMessage({
+        channel: event.channel,
+        thread_ts: event.ts,
+        text: `Done. "${sheetName}" has been added to the spreadsheet: ${sheetUrl}`,
+      });
+    } catch (err) {
+      console.error('[sheet write error]', err);
+      await client.chat.postMessage({
+        channel: event.channel,
+        thread_ts: event.ts,
+        text: `Hit an error writing the sheet: ${err.message}`,
+      });
+    }
+    return;
+  }
 
   const reply = await buildResponse(text, { channelId: event.channel });
-  await client.chat.postMessage({
-    channel: event.channel,
-    thread_ts: event.ts,
-    text: reply,
-  });
+  await client.chat.postMessage({ channel: event.channel, thread_ts: event.ts, text: reply });
 });
 
 (async () => {
   await app.start();
   console.log('Jordan is online');
-
-  // Ingest sheets on startup
   await ingestAllSheets();
-
-  // Re-ingest sheets every 6 hours
   setInterval(ingestAllSheets, 6 * 60 * 60 * 1000);
 })();

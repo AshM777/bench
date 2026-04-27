@@ -3,22 +3,26 @@
 -- Enable pgvector
 create extension if not exists vector;
 
--- Memory table
-create table if not exists memory_items (
+-- Drop and recreate (safe to re-run)
+drop table if exists memory_items cascade;
+drop function if exists match_memory cascade;
+
+-- Memory table (1024 dims = Titan Embed V2 default)
+create table memory_items (
   id text primary key,
-  source_type text not null,   -- slack_message | google_sheet
-  source_ref text,             -- thread_ts or spreadsheet_id
+  source_type text not null,
+  source_ref text,
   content_text text not null,
-  content_embedding vector(1536),
+  content_embedding vector(1024),
   author text,
-  timestamp timestamptz,
+  recorded_at timestamptz,
   channel_id text,
   created_at timestamptz default now()
 );
 
 -- Vector similarity search function
 create or replace function match_memory(
-  query_embedding vector(1536),
+  query_embedding vector(1024),
   match_count int default 8
 )
 returns table (
@@ -27,14 +31,14 @@ returns table (
   source_ref text,
   content_text text,
   author text,
-  timestamp timestamptz,
+  recorded_at timestamptz,
   channel_id text,
   similarity float
 )
 language sql stable
 as $$
   select
-    id, source_type, source_ref, content_text, author, timestamp, channel_id,
+    id, source_type, source_ref, content_text, author, recorded_at, channel_id,
     1 - (content_embedding <=> query_embedding) as similarity
   from memory_items
   where content_embedding is not null

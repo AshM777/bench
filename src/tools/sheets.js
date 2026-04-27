@@ -50,6 +50,33 @@ export async function ingestSheet(spreadsheetId, sheetName) {
   console.log(`Ingested ${dataRows.length} rows from "${sheetName}"`);
 }
 
+export async function createSheet(spreadsheetId, title) {
+  const sheets = google.sheets({ version: 'v4', auth: getAuth() });
+  const res = await sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      requests: [{ addSheet: { properties: { title } } }],
+    },
+  });
+  return res.data.replies[0].addSheet.properties.sheetId;
+}
+
+export async function writeSheet(spreadsheetId, sheetName, rows) {
+  const sheets = google.sheets({ version: 'v4', auth: getAuth() });
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `${sheetName}!A1`,
+    valueInputOption: 'USER_ENTERED',
+    requestBody: { values: rows },
+  });
+}
+
+export async function listSheetNames(spreadsheetId) {
+  const sheets = google.sheets({ version: 'v4', auth: getAuth() });
+  const res = await sheets.spreadsheets.get({ spreadsheetId });
+  return res.data.sheets.map(s => s.properties.title);
+}
+
 // SHEETS_CONFIG format: "spreadsheetId:Sheet Name,spreadsheetId2:Sheet Name 2"
 export async function ingestAllSheets() {
   const config = process.env.SHEETS_CONFIG;

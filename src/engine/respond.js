@@ -9,7 +9,7 @@ export async function buildResponse(userMessage, { channelId, threadContext = []
 
   const contextBlock = relevant.length
     ? `Relevant context from your memory:\n\n${relevant.map(r =>
-        `[${r.source_type} | ${r.timestamp?.slice(0, 10) ?? ''}]\n${r.content_text}`
+        `[${r.source_type} | ${r.recorded_at?.slice(0, 10) ?? ''}]\n${r.content_text}`
       ).join('\n\n---\n\n')}`
     : '';
 
