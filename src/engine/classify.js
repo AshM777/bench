@@ -1,13 +1,13 @@
-import Anthropic from '@anthropic-ai/sdk';
+import AnthropicBedrock from '@anthropic-ai/bedrock-sdk';
 import { JORDAN_CLASSIFICATION_PROMPT } from '../agents/jordan.js';
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const anthropic = new AnthropicBedrock();
 
 const CONFIDENCE_THRESHOLD = parseFloat(process.env.PROACTIVE_CONFIDENCE_THRESHOLD || '0.75');
 
 export async function shouldRespond(message) {
   const response = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: 'us.anthropic.claude-haiku-4-5-20251001-v1:0',
     max_tokens: 128,
     system: JORDAN_CLASSIFICATION_PROMPT,
     messages: [{ role: 'user', content: message }],
