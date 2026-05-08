@@ -422,7 +422,7 @@ MIT &copy; 2026 Bench
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/image?repos=bench/bench&type=date&legend=top-left)](https://www.star-history.com/?repos=bench%2Fbench&type=date&legend=top-left)
+[![Star History Chart](https://api.star-history.com/image?repos=get-bench/bench&type=date&legend=top-left)](https://www.star-history.com/?repos=get-bench%2Fbench&type=date&legend=top-left)
 
 <br/>
 
