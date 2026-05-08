@@ -1,0 +1,55 @@
+{
+  "name": "@bench/mcp-server",
+  "version": "0.1.0",
+  "license": "MIT",
+  "homepage": "https://github.com/get-bench/bench",
+  "bugs": {
+    "url": "https://github.com/get-bench/bench/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/get-bench/bench",
+    "directory": "packages/mcp-server"
+  },
+  "type": "module",
+  "bin": {
+    "bench-mcp-server": "./dist/stdio.js"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "access": "public",
+    "bin": {
+      "bench-mcp-server": "./dist/stdio.js"
+    },
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      }
+    },
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@bench/shared": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.3",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

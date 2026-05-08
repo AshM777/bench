@@ -1,0 +1,63 @@
+{
+  "name": "bench",
+  "version": "0.3.1",
+  "description": "Bench CLI — orchestrate AI agent teams to run a business",
+  "type": "module",
+  "bin": {
+    "bench": "./dist/index.js"
+  },
+  "keywords": [
+    "bench",
+    "ai",
+    "agents",
+    "orchestration",
+    "cli"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/get-bench/bench",
+    "directory": "cli"
+  },
+  "homepage": "https://github.com/get-bench/bench",
+  "bugs": {
+    "url": "https://github.com/get-bench/bench/issues"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "node --input-type=module -e \"import esbuild from 'esbuild'; import config from './esbuild.config.mjs'; await esbuild.build(config);\" && chmod +x dist/index.js",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@bench/adapter-acpx-local": "workspace:*",
+    "@bench/adapter-claude-local": "workspace:*",
+    "@bench/adapter-codex-local": "workspace:*",
+    "@bench/adapter-cursor-local": "workspace:*",
+    "@bench/adapter-gemini-local": "workspace:*",
+    "@bench/adapter-openclaw-gateway": "workspace:*",
+    "@bench/adapter-opencode-local": "workspace:*",
+    "@bench/adapter-pi-local": "workspace:*",
+    "@bench/adapter-utils": "workspace:*",
+    "@bench/db": "workspace:*",
+    "@bench/server": "workspace:*",
+    "@bench/shared": "workspace:*",
+    "@clack/prompts": "^0.10.1",
+    "commander": "^13.1.0",
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "0.38.4",
+    "embedded-postgres": "18.1.0-beta.16",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.18",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

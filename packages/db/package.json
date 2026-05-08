@@ -1,0 +1,59 @@
+{
+  "name": "@bench/db",
+  "version": "0.3.1",
+  "license": "MIT",
+  "homepage": "https://github.com/get-bench/bench",
+  "bugs": {
+    "url": "https://github.com/get-bench/bench/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/get-bench/bench",
+    "directory": "packages/db"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      },
+      "./*": {
+        "types": "./dist/*.d.ts",
+        "import": "./dist/*.js"
+      }
+    },
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "check:migrations": "tsx src/check-migration-numbering.ts",
+    "build": "pnpm run check:migrations && tsc && cp -r src/migrations dist/migrations",
+    "clean": "rm -rf dist",
+    "typecheck": "pnpm run check:migrations && tsc --noEmit",
+    "generate": "pnpm run check:migrations && tsc -p tsconfig.json && drizzle-kit generate",
+    "migrate": "pnpm run check:migrations && tsx src/migrate.ts",
+    "seed": "tsx src/seed.ts"
+  },
+  "dependencies": {
+    "@bench/shared": "workspace:*",
+    "drizzle-orm": "^0.38.4",
+    "embedded-postgres": "18.1.0-beta.16",
+    "postgres": "^3.4.9"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.3",
+    "drizzle-kit": "^0.31.10",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "name": "@bench/ui",
+  "version": "0.3.1",
+  "description": "Prebuilt Bench board UI assets.",
+  "license": "MIT",
+  "homepage": "https://github.com/get-bench/bench",
+  "bugs": {
+    "url": "https://github.com/get-bench/bench/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/get-bench/bench",
+    "directory": "ui"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "storybook": "storybook dev -p 6006 -c storybook/.storybook",
+    "build-storybook": "storybook build -c storybook/.storybook -o storybook-static",
+    "preview": "vite preview",
+    "typecheck": "tsc -b",
+    "clean": "rm -rf dist storybook-static tsconfig.tsbuildinfo",
+    "prepack": "rm -f package.dev.json && cp package.json package.dev.json && node ../scripts/generate-ui-package-json.mjs",
+    "postpack": "if [ -f package.dev.json ]; then mv package.dev.json package.json; fi"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@assistant-ui/react": "0.12.23",
+    "@bench/adapter-acpx-local": "workspace:*",
+    "@bench/adapter-claude-local": "workspace:*",
+    "@bench/adapter-codex-local": "workspace:*",
+    "@bench/adapter-cursor-local": "workspace:*",
+    "@bench/adapter-gemini-local": "workspace:*",
+    "@bench/adapter-openclaw-gateway": "workspace:*",
+    "@bench/adapter-opencode-local": "workspace:*",
+    "@bench/adapter-pi-local": "workspace:*",
+    "@bench/adapter-utils": "workspace:*",
+    "@bench/shared": "workspace:*",
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@lexical/link": "0.35.0",
+    "@mdxeditor/editor": "^3.55.0",
+    "@radix-ui/react-slot": "^1.2.4",
+    "@tailwindcss/typography": "^0.5.19",
+    "@tanstack/react-query": "^5.100.9",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
+    "hermes-paperclip-adapter": "^0.2.1",
+    "lexical": "0.35.0",
+    "lucide-react": "^0.574.0",
+    "mermaid": "^11.14.0",
+    "radix-ui": "^1.4.3",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "react-markdown": "^10.1.0",
+    "react-router-dom": "^7.15.0",
+    "remark-gfm": "^4.0.1",
+    "tailwind-merge": "^3.5.0"
+  },
+  "devDependencies": {
+    "@storybook/addon-a11y": "10.3.5",
+    "@storybook/addon-docs": "10.3.5",
+    "@storybook/react-vite": "10.3.5",
+    "@tailwindcss/vite": "^4.2.4",
+    "@types/node": "^25.6.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^4.7.0",
+    "storybook": "10.3.5",
+    "tailwindcss": "^4.2.4",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.2",
+    "vitest": "^3.2.4"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "name": "@bench/plugin-fake-sandbox",
+  "version": "0.1.0",
+  "description": "First-party deterministic fake sandbox provider plugin for Bench environments",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "benchPlugin": {
+    "manifest": "./dist/manifest.js",
+    "worker": "./dist/worker.js"
+  },
+  "scripts": {
+    "prebuild": "pnpm --filter @bench/plugin-sdk ensure-build-deps",
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "typecheck": "pnpm --filter @bench/plugin-sdk ensure-build-deps && tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@bench/plugin-sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.3",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

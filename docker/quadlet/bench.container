@@ -1,0 +1,23 @@
+[Unit]
+Description=Bench AI Agent Orchestrator
+Requires=bench-db.service
+After=bench-db.service
+
+[Container]
+Image=bench-local
+ContainerName=bench
+Pod=bench.pod
+Volume=%h/.local/share/bench:/bench:Z
+Environment=HOST=0.0.0.0
+Environment=BENCH_HOME=/bench
+Environment=BENCH_DEPLOYMENT_MODE=authenticated
+Environment=BENCH_DEPLOYMENT_EXPOSURE=private
+Environment=BENCH_PUBLIC_URL=http://localhost:3100
+EnvironmentFile=%h/.config/containers/systemd/bench.env
+
+[Service]
+Restart=on-failure
+TimeoutStartSec=120
+
+[Install]
+WantedBy=default.target

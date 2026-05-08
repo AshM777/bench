@@ -1,0 +1,90 @@
+{
+  "family": "bench-server",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "2048",
+  "memory": "4096",
+  "executionRoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/bench-ecs-execution",
+  "taskRoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/bench-ecs-task",
+  "containerDefinitions": [
+    {
+      "name": "bench-server",
+      "image": "<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/bench-server:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 3100,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        { "name": "NODE_ENV", "value": "production" },
+        { "name": "HOST", "value": "0.0.0.0" },
+        { "name": "PORT", "value": "3100" },
+        { "name": "SERVE_UI", "value": "true" },
+        { "name": "BENCH_HOME", "value": "/bench" },
+        { "name": "BENCH_INSTANCE_ID", "value": "default" },
+        { "name": "BENCH_CONFIG", "value": "/bench/instances/default/config.json" },
+        { "name": "BENCH_DEPLOYMENT_MODE", "value": "authenticated" },
+        { "name": "BENCH_DEPLOYMENT_EXPOSURE", "value": "public" },
+        { "name": "BENCH_PUBLIC_URL", "value": "https://<DOMAIN>" },
+        { "name": "BENCH_MIGRATION_AUTO_APPLY", "value": "true" },
+        { "name": "HEARTBEAT_SCHEDULER_ENABLED", "value": "true" }
+      ],
+      "secrets": [
+        {
+          "name": "DATABASE_URL",
+          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:bench/database-url"
+        },
+        {
+          "name": "BETTER_AUTH_SECRET",
+          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:bench/better-auth-secret"
+        },
+        {
+          "name": "ANTHROPIC_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:bench/anthropic-api-key"
+        },
+        {
+          "name": "OPENAI_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:bench/openai-api-key"
+        },
+        {
+          "name": "GITHUB_TOKEN",
+          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:bench/github-token"
+        }
+      ],
+      "mountPoints": [
+        {
+          "sourceVolume": "bench-data",
+          "containerPath": "/bench",
+          "readOnly": false
+        }
+      ],
+      "healthCheck": {
+        "command": ["CMD-SHELL", "curl -f http://localhost:3100/api/health || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 60
+      },
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/bench",
+          "awslogs-region": "<REGION>",
+          "awslogs-stream-prefix": "server"
+        }
+      }
+    }
+  ],
+  "volumes": [
+    {
+      "name": "bench-data",
+      "efsVolumeConfiguration": {
+        "fileSystemId": "<EFS_ID>",
+        "rootDirectory": "/",
+        "transitEncryption": "ENABLED"
+      }
+    }
+  ]
+}

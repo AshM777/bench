@@ -1,0 +1,18 @@
+services:
+  bench:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    ports:
+      - "${BENCH_PORT:-3100}:3100"
+    environment:
+      HOST: "0.0.0.0"
+      BENCH_HOME: "/bench"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      BENCH_DEPLOYMENT_MODE: "authenticated"
+      BENCH_DEPLOYMENT_EXPOSURE: "private"
+      BENCH_PUBLIC_URL: "${BENCH_PUBLIC_URL:-http://localhost:3100}"
+      BETTER_AUTH_SECRET: "${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET must be set}"
+    volumes:
+      - "${BENCH_DATA_DIR:-../data/docker-bench}:/bench"

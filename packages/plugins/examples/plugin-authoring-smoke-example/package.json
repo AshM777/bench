@@ -1,0 +1,45 @@
+{
+  "name": "@bench/plugin-authoring-smoke-example",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "A Bench plugin",
+  "scripts": {
+    "prebuild": "pnpm --filter @bench/plugin-sdk ensure-build-deps",
+    "build": "node ./esbuild.config.mjs",
+    "build:rollup": "rollup -c",
+    "dev": "node ./esbuild.config.mjs --watch",
+    "dev:ui": "bench-plugin-dev-server --root . --ui-dir dist/ui --port 4177",
+    "test": "vitest run --config ./vitest.config.ts",
+    "typecheck": "pnpm --filter @bench/plugin-sdk ensure-build-deps && tsc --noEmit"
+  },
+  "benchPlugin": {
+    "manifest": "./dist/manifest.js",
+    "worker": "./dist/worker.js",
+    "ui": "./dist/ui/"
+  },
+  "keywords": [
+    "bench",
+    "plugin",
+    "connector"
+  ],
+  "author": "Plugin Author",
+  "license": "MIT",
+  "dependencies": {
+    "@bench/plugin-sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@rollup/plugin-typescript": "^12.3.0",
+    "@types/node": "^24.12.3",
+    "@types/react": "^19.2.14",
+    "esbuild": "^0.27.7",
+    "rollup": "^4.60.3",
+    "tslib": "^2.8.1",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  }
+}
