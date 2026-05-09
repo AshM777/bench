@@ -23,9 +23,18 @@ import "./index.css";
 initPluginBridge(React, ReactDOM);
 
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js");
-  });
+  if (import.meta.env.PROD) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("/sw.js");
+    });
+  } else {
+    // Avoid stale cached bundles during local development.
+    void navigator.serviceWorker.getRegistrations().then((registrations) => {
+      for (const registration of registrations) {
+        void registration.unregister();
+      }
+    });
+  }
 }
 
 const queryClient = new QueryClient({

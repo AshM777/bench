@@ -12,6 +12,7 @@ import { NewIssueDialog } from "./NewIssueDialog";
 import { NewProjectDialog } from "./NewProjectDialog";
 import { NewGoalDialog } from "./NewGoalDialog";
 import { NewAgentDialog } from "./NewAgentDialog";
+import { RequestCoworkerHireDialog } from "./RequestCoworkerHireDialog";
 import { KeyboardShortcutsCheatsheet } from "./KeyboardShortcutsCheatsheet";
 import { ToastViewport } from "./ToastViewport";
 import { MobileBottomNav } from "./MobileBottomNav";
@@ -40,6 +41,7 @@ import { queryKeys } from "../lib/queryKeys";
 import { scheduleMainContentFocus } from "../lib/main-content-focus";
 import { cn } from "../lib/utils";
 import { NotFoundPage } from "../pages/NotFound";
+import { DashboardPersonaProvider } from "../context/DashboardPersonaContext";
 
 const INSTANCE_SETTINGS_MEMORY_KEY = "bench.lastInstanceSettingsPath";
 
@@ -304,6 +306,7 @@ export function Layout() {
 
   return (
     <GeneralSettingsProvider value={{ keyboardShortcutsEnabled }}>
+      <DashboardPersonaProvider>
       <div
       className={cn(
         "bg-background text-foreground pt-[env(safe-area-inset-top)]",
@@ -412,12 +415,14 @@ export function Layout() {
       {isMobile && <MobileBottomNav visible={mobileNavVisible} />}
       <CommandPalette />
       <NewIssueDialog />
+      <RequestCoworkerHireDialog />
       <NewProjectDialog />
       <NewGoalDialog />
       <NewAgentDialog />
       <KeyboardShortcutsCheatsheet open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
       <ToastViewport />
       </div>
+      </DashboardPersonaProvider>
     </GeneralSettingsProvider>
   );
 }

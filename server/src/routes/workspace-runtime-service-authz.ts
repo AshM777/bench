@@ -74,7 +74,7 @@ async function assertAgentCanManageRuntimeServicesForWorkspace(
     throw forbidden("Agent key cannot access another company");
   }
 
-  if (actorAgent.role === "ceo") {
+  if (actorAgent.role === "admin") {
     return;
   }
 

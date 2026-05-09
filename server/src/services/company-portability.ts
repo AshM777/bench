@@ -43,6 +43,7 @@ import {
   deriveProjectUrlKey,
   envConfigSchema,
   normalizeAgentUrlKey,
+  normalizeCoworkerRole,
 } from "@bench/shared";
 import {
   readBenchSkillSyncPreference,
@@ -70,9 +71,23 @@ import { secretService } from "./secrets.js";
 /** Build OrgNode tree from manifest agent list (slug + reportsToSlug). */
 function buildOrgTreeFromManifest(agents: CompanyPortabilityManifest["agents"]): OrgNode[] {
   const ROLE_LABELS: Record<string, string> = {
-    ceo: "Chief Executive", cto: "Technology", cmo: "Marketing",
-    cfo: "Finance", coo: "Operations", vp: "VP", manager: "Manager",
-    engineer: "Engineer", agent: "Agent",
+    admin: "Admin",
+    ceo: "Admin",
+    security: "Security",
+    engineer: "Engineer",
+    designer: "Designer",
+    pm: "PM",
+    qa: "QA",
+    devops: "DevOps",
+    researcher: "Researcher",
+    general: "General",
+    coo: "Operations",
+    vp: "VP",
+    manager: "Manager",
+    agent: "Agent",
+    cto: "General",
+    cmo: "General",
+    cfo: "General",
   };
   const bySlug = new Map(agents.map((a) => [a.slug, a]));
   const childrenOf = new Map<string | null, typeof agents>();
@@ -4182,7 +4197,7 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
         );
         const patch = {
           name: planAgent.plannedName,
-          role: manifestAgent.role,
+          role: normalizeCoworkerRole(String(manifestAgent.role)),
           title: manifestAgent.title,
           icon: manifestAgent.icon,
           capabilities: manifestAgent.capabilities,

@@ -718,7 +718,7 @@ export function recoveryService(db: Db, deps: { enqueueWakeup: RecoveryWakeup })
     const roleCandidates = await db
       .select()
       .from(agents)
-      .where(and(eq(agents.companyId, input.run.companyId), inArray(agents.role, ["cto", "ceo"])))
+      .where(and(eq(agents.companyId, input.run.companyId), eq(agents.role, "admin")))
       .orderBy(sql`case when ${agents.role} = 'cto' then 0 else 1 end`, asc(agents.createdAt));
     candidateIds.push(...roleCandidates.map((agent) => agent.id));
 
@@ -1268,7 +1268,7 @@ export function recoveryService(db: Db, deps: { enqueueWakeup: RecoveryWakeup })
     const roleCandidates = await db
       .select()
       .from(agents)
-      .where(and(eq(agents.companyId, issue.companyId), inArray(agents.role, ["cto", "ceo"])))
+      .where(and(eq(agents.companyId, issue.companyId), eq(agents.role, "admin")))
       .orderBy(sql`case when ${agents.role} = 'cto' then 0 else 1 end`, asc(agents.createdAt));
     candidateIds.push(...roleCandidates.map((agent) => agent.id));
     if (issue.assigneeAgentId) candidateIds.push(issue.assigneeAgentId);

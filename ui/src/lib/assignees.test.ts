@@ -24,7 +24,7 @@ describe("assignee selection helpers", () => {
     expect(option).toEqual({
       id: "user:local-board",
       label: "Me",
-      searchText: "me board human local-board",
+      searchText: "me admin human local-board",
     });
     expect(parseAssigneeValue(option.id)).toEqual({
       assigneeAgentId: null,
@@ -48,7 +48,7 @@ describe("assignee selection helpers", () => {
 
   it("formats current and board user labels consistently", () => {
     expect(formatAssigneeUserLabel("user-1", "user-1")).toBe("You");
-    expect(formatAssigneeUserLabel("local-board", "someone-else")).toBe("Board");
+    expect(formatAssigneeUserLabel("local-board", "someone-else")).toBe("Admin");
     expect(formatAssigneeUserLabel("user-abcdef", "someone-else")).toBe("user-");
   });
 

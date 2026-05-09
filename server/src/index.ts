@@ -202,7 +202,7 @@ export async function startServer(): Promise<StartedServer> {
   
   const LOCAL_BOARD_USER_ID = "local-board";
   const LOCAL_BOARD_USER_EMAIL = "local@bench.local";
-  const LOCAL_BOARD_USER_NAME = "Board";
+  const LOCAL_BOARD_USER_NAME = "Admin";
   
   async function ensureLocalTrustedBoardPrincipal(db: any): Promise<void> {
     const now = new Date();

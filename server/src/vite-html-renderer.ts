@@ -24,9 +24,35 @@ injectIntoGlobalHook(window);
 window.$RefreshReg$ = () => {};
 window.$RefreshSig$ = () => (type) => type;
 </script>`;
+const DEV_SW_RESET_PREAMBLE = `<script>
+(() => {
+  // Dev-only safety net: stale service workers can keep serving old bundles
+  // after large refactors/renames and produce blank screens.
+  const marker = "bench.dev.sw-reset.v1";
+  if (!("serviceWorker" in navigator)) return;
+  if (sessionStorage.getItem(marker) === "done") return;
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    if (registrations.length === 0) {
+      sessionStorage.setItem(marker, "done");
+      return;
+    }
+    Promise.all(registrations.map((registration) => registration.unregister()))
+      .catch(() => undefined)
+      .finally(() => {
+        sessionStorage.setItem(marker, "done");
+        location.reload();
+      });
+  }).catch(() => undefined);
+})();
+</script>`;
 
 function injectViteDevPreamble(html: string): string {
   let injectedHtml = html;
+  if (!injectedHtml.includes("bench.dev.sw-reset.v1")) {
+    injectedHtml = injectedHtml.includes("</head>")
+      ? injectedHtml.replace("</head>", `    ${DEV_SW_RESET_PREAMBLE}\n  </head>`)
+      : `${DEV_SW_RESET_PREAMBLE}\n${injectedHtml}`;
+  }
   if (!injectedHtml.includes('"/@react-refresh"') && !injectedHtml.includes("'/@react-refresh'")) {
     injectedHtml = injectedHtml.includes("</head>")
       ? injectedHtml.replace("</head>", `    ${REACT_REFRESH_PREAMBLE}\n  </head>`)

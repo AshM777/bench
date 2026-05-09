@@ -267,7 +267,7 @@ export function executionWorkspaceRoutes(db: Db) {
               : null,
             agent: {
               id: actor.agentId ?? null,
-              name: actor.actorType === "user" ? "Board" : "Agent",
+              name: actor.actorType === "user" ? "Admin" : "Agent",
               companyId: existing.companyId,
             },
             recorder,
@@ -284,7 +284,7 @@ export function executionWorkspaceRoutes(db: Db) {
           return await runWorkspaceJobForControl({
             actor: {
               id: actor.agentId ?? null,
-              name: actor.actorType === "user" ? "Board" : "Agent",
+              name: actor.actorType === "user" ? "Admin" : "Agent",
               companyId: existing.companyId,
             },
             issue: existing.sourceIssueId
@@ -336,7 +336,7 @@ export function executionWorkspaceRoutes(db: Db) {
             db,
             actor: {
               id: actor.agentId ?? null,
-              name: actor.actorType === "user" ? "Board" : "Agent",
+              name: actor.actorType === "user" ? "Admin" : "Agent",
               companyId: existing.companyId,
             },
             issue: existing.sourceIssueId

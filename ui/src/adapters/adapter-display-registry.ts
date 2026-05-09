@@ -69,9 +69,8 @@ const adapterDisplayMap: Record<string, AdapterDisplayInfo> = {
   },
   codex_local: {
     label: "Codex",
-    description: "Local Codex agent",
+    description: "Local OpenAI Codex CLI agent",
     icon: Code,
-    recommended: true,
   },
   gemini_local: {
     label: "Gemini CLI",

@@ -46,7 +46,7 @@ import {
   Github,
   Link2,
   ExternalLink,
-  Bench,
+  Paperclip,
   Pencil,
   Plus,
   RefreshCw,
@@ -160,7 +160,7 @@ function sourceMeta(sourceBadge: CompanySkillSourceBadge, sourceLabel: string | 
     case "local":
       return { icon: Folder, label: sourceLabel ?? "Folder", managedLabel: "Folder managed" };
     case "bench":
-      return { icon: Bench, label: sourceLabel ?? "Bench", managedLabel: "Bench managed" };
+      return { icon: Paperclip, label: sourceLabel ?? "Bench", managedLabel: "Bench managed" };
     default:
       return { icon: Boxes, label: sourceLabel ?? "Catalog", managedLabel: "Catalog managed" };
   }

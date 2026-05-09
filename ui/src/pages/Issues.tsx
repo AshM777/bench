@@ -14,6 +14,8 @@ import { EmptyState } from "../components/EmptyState";
 import { IssuesList } from "../components/IssuesList";
 import { CircleDot } from "lucide-react";
 import type { Issue } from "@bench/shared";
+import { useDashboardAgentScope } from "../context/DashboardPersonaContext";
+import { issueTouchesScopedAgents } from "../lib/manager-scope";
 
 const WORKSPACE_FILTER_ISSUE_LIMIT = 1000;
 const ISSUES_PAGE_SIZE = 500;
@@ -90,6 +92,8 @@ export function Issues() {
     enabled: !!selectedCompanyId,
   });
 
+  const scope = useDashboardAgentScope(agents);
+
   const { data: projects } = useQuery({
     queryKey: queryKeys.projects.list(selectedCompanyId!),
     queryFn: () => projectsApi.list(selectedCompanyId!),
@@ -153,7 +157,11 @@ export function Issues() {
     placeholderData: (previousData) => previousData,
   });
 
-  const issues = useMemo(() => mergeIssuePagesStable(issuePages?.pages ?? []), [issuePages]);
+  const issues = useMemo(() => {
+    const merged = mergeIssuePagesStable(issuePages?.pages ?? []);
+    if (!scope.isManagerView || !scope.scopedAgentIds) return merged;
+    return merged.filter((issue) => issueTouchesScopedAgents(issue, scope.scopedAgentIds!));
+  }, [issuePages, scope.isManagerView, scope.scopedAgentIds]);
   const hasMoreServerIssues = syncedSearch.trim().length === 0
     && hasNextPage === true;
   const loadMoreServerIssues = useCallback(() => {
@@ -177,6 +185,14 @@ export function Issues() {
   }
 
   return (
+    <>
+      {scope.isManagerView && (!scope.sessionEmail || scope.scopedAgents.length === 0) ? (
+        <p className="mb-4 text-sm text-muted-foreground rounded-md border border-border bg-muted/30 px-3 py-2">
+          {!scope.sessionEmail
+            ? "Manager view needs a signed-in email to filter tasks for your coworkers."
+            : "No coworkers assigned to you — issue list is empty in Manager view until benchManagerEmail is set on agents."}
+        </p>
+      ) : null}
     <IssuesList
       issues={issues ?? []}
       isLoading={isLoading}
@@ -197,5 +213,6 @@ export function Issues() {
       onUpdateIssue={(id, data) => updateIssue.mutate({ id, data })}
       searchFilters={participantAgentId || workspaceIdFilter ? { participantAgentId, workspaceId: workspaceIdFilter } : undefined}
     />
+    </>
   );
 }

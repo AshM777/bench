@@ -34,6 +34,7 @@ import { validate } from "../middleware/validate.js";
 import {
   agentService,
   agentInstructionsService,
+  agentActivityFeedService,
   accessService,
   approvalService,
   companySkillService,
@@ -46,6 +47,7 @@ import {
   syncInstructionsBundleConfigFromFilePath,
   workspaceOperationService,
 } from "../services/index.js";
+import { normalizeActivityLimit } from "../services/activity.js";
 import { conflict, forbidden, notFound, unprocessable } from "../errors.js";
 import { assertBoard, assertCompanyAccess, assertInstanceAdmin, getActorInfo } from "./authz.js";
 import {
@@ -154,6 +156,7 @@ export function agentRoutes(
 
   const router = Router();
   const svc = agentService(db);
+  const agentActivityFeed = agentActivityFeedService(db);
   const access = accessService(db);
   const approvalsSvc = approvalService(db);
   const budgets = budgetService(db);
@@ -304,10 +307,10 @@ export function agentRoutes(
       : [];
     const hasExplicitTaskAssignGrant = grants.some((grant) => grant.permissionKey === "tasks:assign");
 
-    if (agent.role === "ceo") {
+    if (agent.role === "admin") {
       return {
         canAssignTasks: true,
-        taskAssignSource: "ceo_role" as const,
+        taskAssignSource: "admin_role" as const,
         membership,
         grants,
       };
@@ -514,7 +517,7 @@ export function agentRoutes(
     }
 
     if (actorAgent.id === targetAgent.id) return;
-    if (actorAgent.role === "ceo") return;
+    if (actorAgent.role === "admin") return;
     const allowedByGrant = await access.hasPermission(
       targetAgent.companyId,
       "agent",
@@ -522,7 +525,7 @@ export function agentRoutes(
       "agents:create",
     );
     if (allowedByGrant || canCreateAgents(actorAgent)) return;
-    throw forbidden("Only CEO or agent creators can modify other agents");
+    throw forbidden("Only Admin or agent creators can modify other agents");
   }
 
   async function assertCanReadAgent(req: Request, targetAgent: { companyId: string }) {
@@ -1427,6 +1430,22 @@ export function agentRoutes(
     res.json(result.map((agent) => redactForRestrictedAgentView(agent)));
   });
 
+  router.get("/companies/:companyId/agents/:agentId/activity", async (req, res) => {
+    const companyId = req.params.companyId as string;
+    const agentId = req.params.agentId as string;
+    assertCompanyAccess(req, companyId);
+
+    const agent = await svc.getById(agentId);
+    if (!agent || agent.companyId !== companyId) {
+      res.status(404).json({ error: "Agent not found" });
+      return;
+    }
+
+    const limit = normalizeActivityLimit(Number(req.query.limit));
+    const entries = await agentActivityFeed.list(companyId, agentId, limit);
+    res.json({ entries });
+  });
+
   router.get("/instance/scheduler-heartbeats", async (req, res) => {
     assertInstanceAdmin(req);
 
@@ -2056,8 +2075,8 @@ export function agentRoutes(
         res.status(403).json({ error: "Forbidden" });
         return;
       }
-      if (actorAgent.role !== "ceo") {
-        res.status(403).json({ error: "Only CEO can manage permissions" });
+      if (actorAgent.role !== "admin") {
+        res.status(403).json({ error: "Only Admin can manage permissions" });
         return;
       }
     } else {
@@ -2071,7 +2090,7 @@ export function agentRoutes(
     }
 
     const effectiveCanAssignTasks =
-      agent.role === "ceo" || Boolean(agent.permissions?.canCreateAgents) || req.body.canAssignTasks;
+      agent.role === "admin" || Boolean(agent.permissions?.canCreateAgents) || req.body.canAssignTasks;
     await access.ensureMembership(agent.companyId, "agent", agent.id, "member", "active");
     await access.setPrincipalPermission(
       agent.companyId,

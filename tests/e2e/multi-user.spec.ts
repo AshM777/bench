@@ -50,14 +50,14 @@ async function createCompanyViaWizard(
   }
   const company = await createRes.json();
 
-  // Create a CEO agent
+  // Create an Admin coworker
   const agentRes = await request.post(
     `${BASE}/api/companies/${company.id}/agents`,
     {
       data: {
-        name: "CEO",
-        role: "ceo",
-        title: "CEO",
+        name: "Admin",
+        role: "admin",
+        title: "Admin",
         adapterType: "claude_local",
       },
     }

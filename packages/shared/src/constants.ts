@@ -41,11 +41,9 @@ export const AGENT_ADAPTER_TYPES = [
 ] as const;
 export type AgentAdapterType = (typeof AGENT_ADAPTER_TYPES)[number] | (string & {});
 
-export const AGENT_ROLES = [
-  "ceo",
-  "cto",
-  "cmo",
-  "cfo",
+/** Canonical coworker role slugs stored on `agents.role` and used in hire/update validators. */
+export const COWORKER_ROLES = [
+  "admin",
   "security",
   "engineer",
   "designer",
@@ -55,13 +53,10 @@ export const AGENT_ROLES = [
   "researcher",
   "general",
 ] as const;
-export type AgentRole = (typeof AGENT_ROLES)[number];
+export type CoworkerRole = (typeof COWORKER_ROLES)[number];
 
-export const AGENT_ROLE_LABELS: Record<AgentRole, string> = {
-  ceo: "CEO",
-  cto: "CTO",
-  cmo: "CMO",
-  cfo: "CFO",
+export const COWORKER_ROLE_LABELS: Record<CoworkerRole, string> = {
+  admin: "Admin",
   security: "Security",
   engineer: "Engineer",
   designer: "Designer",
@@ -71,6 +66,28 @@ export const AGENT_ROLE_LABELS: Record<AgentRole, string> = {
   researcher: "Researcher",
   general: "General",
 };
+
+/** Roles selectable when hiring an additional coworker (founding Admin is automatic). */
+export const HIRABLE_COWORKER_ROLES = COWORKER_ROLES.filter(
+  (r): r is Exclude<CoworkerRole, "admin"> => r !== "admin",
+);
+
+const LEGACY_COWORKER_ROLE_MAP: Record<string, CoworkerRole> = {
+  ceo: "admin",
+  cto: "general",
+  cmo: "general",
+  cfo: "general",
+  agent: "general",
+};
+
+/** Maps legacy or loose manifest/API role strings onto {@link COWORKER_ROLES}. */
+export function normalizeCoworkerRole(role: string): CoworkerRole {
+  const key = role.trim().toLowerCase();
+  const mapped = LEGACY_COWORKER_ROLE_MAP[key];
+  if (mapped) return mapped;
+  if ((COWORKER_ROLES as readonly string[]).includes(key)) return key as CoworkerRole;
+  return "general";
+}
 
 export const AGENT_DEFAULT_MAX_CONCURRENT_RUNS = 20;
 export const WORKSPACE_BRANCH_ROUTINE_VARIABLE = "workspaceBranch";

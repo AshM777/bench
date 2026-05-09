@@ -535,7 +535,7 @@ function PickerGallery() {
       }),
     }),
   );
-  const [manager, setManager] = useState<string | null>("agent-cto");
+  const [manager, setManager] = useState<string | null>("agent-lead");
   const [selectorValue, setSelectorValue] = useState("project-board-ui");
   const agentsWithTerminated: Agent[] = useMemo(
     () => [
@@ -576,7 +576,7 @@ function PickerGallery() {
             />
           </div>
         </StatePanel>
-        <StatePanel label="ReportsToPicker" detail="Selected manager, CEO disabled state, and filtered hierarchy choices.">
+        <StatePanel label="ReportsToPicker" detail="Selected manager, Admin disabled state, and filtered hierarchy choices.">
           <div className="flex flex-wrap gap-3">
             <ReportsToPicker agents={agentsWithTerminated} value={manager} onChange={setManager} excludeAgentIds={["agent-codex"]} />
             <ReportsToPicker agents={agentsWithTerminated} value={null} onChange={() => undefined} disabled />

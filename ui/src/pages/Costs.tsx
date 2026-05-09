@@ -10,6 +10,7 @@ import type {
   QuotaWindow,
 } from "@bench/shared";
 import { ArrowDownLeft, ArrowUpRight, ChevronDown, ChevronRight, Coins, DollarSign, ReceiptText } from "lucide-react";
+import { agentsApi } from "../api/agents";
 import { budgetsApi } from "../api/budgets";
 import { costsApi } from "../api/costs";
 import { BillerSpendCard } from "../components/BillerSpendCard";
@@ -26,6 +27,7 @@ import { ProviderQuotaCard } from "../components/ProviderQuotaCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { useCompany } from "../context/CompanyContext";
+import { useDashboardAgentScope } from "../context/DashboardPersonaContext";
 import { useDateRange, PRESET_KEYS, PRESET_LABELS } from "../hooks/useDateRange";
 import { queryKeys } from "../lib/queryKeys";
 import { billingTypeDisplayName, cn, formatCents, formatTokens, providerDisplayName } from "../lib/utils";
@@ -191,6 +193,19 @@ export function Costs() {
   const weekRange = useMemo(() => currentWeekRange(), [today]);
   const companyId = selectedCompanyId ?? NO_COMPANY;
 
+  const { data: agentsForScope } = useQuery({
+    queryKey: queryKeys.agents.list(companyId),
+    queryFn: () => agentsApi.list(companyId),
+    enabled: !!selectedCompanyId,
+  });
+  const scope = useDashboardAgentScope(agentsForScope);
+
+  useEffect(() => {
+    if (scope.isManagerView && mainTab !== "overview") {
+      setMainTab("overview");
+    }
+  }, [scope.isManagerView, mainTab]);
+
   const { data: budgetData, isLoading: budgetLoading, error: budgetError } = useQuery({
     queryKey: queryKeys.budgets.overview(companyId),
     queryFn: () => budgetsApi.overview(companyId),
@@ -229,7 +244,7 @@ export function Costs() {
     onSuccess: invalidateBudgetViews,
   });
 
-  const { data: spendData, isLoading: spendLoading, error: spendError } = useQuery({
+  const { data: spendQueryData, isLoading: spendLoading, error: spendError } = useQuery({
     queryKey: queryKeys.costs(companyId, from || undefined, to || undefined),
     queryFn: async () => {
       const [summary, byAgent, byProject, byAgentModel] = await Promise.all([
@@ -242,6 +257,25 @@ export function Costs() {
     },
     enabled: !!selectedCompanyId && customReady,
   });
+
+  const spendData = useMemo(() => {
+    if (!spendQueryData) return undefined;
+    if (!scope.isManagerView || !scope.scopedAgentIds) return spendQueryData;
+    const ids = scope.scopedAgentIds;
+    const byAgent = spendQueryData.byAgent.filter((r) => ids.has(r.agentId));
+    const byAgentModel = spendQueryData.byAgentModel.filter((r) => ids.has(r.agentId));
+    const spendCents = byAgent.reduce((sum, row) => sum + row.costCents, 0);
+    const budgetCents = scope.scopedAgents.reduce((sum, a) => sum + a.budgetMonthlyCents, 0);
+    const utilizationPercent =
+      budgetCents > 0 ? Math.min(100, Math.round((spendCents / budgetCents) * 100)) : 0;
+    const summary = {
+      ...spendQueryData.summary,
+      spendCents,
+      budgetCents,
+      utilizationPercent,
+    };
+    return { ...spendQueryData, byAgent, byAgentModel, summary };
+  }, [spendQueryData, scope]);
 
   const { data: financeData, isLoading: financeLoading, error: financeError } = useQuery({
     queryKey: [
@@ -545,6 +579,13 @@ export function Costs() {
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
                   Inference spend, platform fees, credits, and live quota windows.
                 </p>
+                {scope.isManagerView && (!scope.sessionEmail || scope.scopedAgents.length === 0) ? (
+                  <p className="mt-3 text-sm text-muted-foreground rounded-md border border-border bg-muted/30 px-3 py-2">
+                    {!scope.sessionEmail
+                      ? "Sign in with an email to scope costs to coworkers assigned to you."
+                      : "No coworkers assigned — costs will be empty until benchManagerEmail is set on agents."}
+                  </p>
+                ) : null}
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
@@ -579,51 +620,74 @@ export function Costs() {
             </div>
           ) : null}
 
-          <div className="grid gap-3 lg:grid-cols-4">
+          <div className={cn("grid gap-3", scope.isManagerView ? "lg:grid-cols-2" : "lg:grid-cols-4")}>
             <MetricTile
-              label="Inference spend"
+              label={scope.isManagerView ? "Inference spend (your team)" : "Inference spend"}
               value={formatCents(spendData?.summary.spendCents ?? 0)}
               subtitle={`${formatTokens(inferenceTokenTotal)} tokens across request-scoped events`}
               icon={DollarSign}
             />
-            <MetricTile
-              label="Budget"
-              value={activeBudgetIncidents.length > 0 ? String(activeBudgetIncidents.length) : (
-                spendData?.summary.budgetCents && spendData.summary.budgetCents > 0
-                  ? `${spendData.summary.utilizationPercent}%`
-                  : "Open"
-              )}
-              subtitle={
-                activeBudgetIncidents.length > 0
-                  ? `${budgetData?.pausedAgentCount ?? 0} agents paused · ${budgetData?.pausedProjectCount ?? 0} projects paused`
-                  : spendData?.summary.budgetCents && spendData.summary.budgetCents > 0
-                    ? `${formatCents(spendData.summary.spendCents)} of ${formatCents(spendData.summary.budgetCents)}`
-                    : "No monthly cap configured"
-              }
-              icon={Coins}
-            />
-            <MetricTile
-              label="Finance net"
-              value={formatCents(financeData?.summary.netCents ?? 0)}
-              subtitle={`${formatCents(financeData?.summary.debitCents ?? 0)} debits · ${formatCents(financeData?.summary.creditCents ?? 0)} credits`}
-              icon={ReceiptText}
-            />
-            <MetricTile
-              label="Finance events"
-              value={String(financeData?.summary.eventCount ?? 0)}
-              subtitle={`${formatCents(financeData?.summary.estimatedDebitCents ?? 0)} estimated in range`}
-              icon={ArrowUpRight}
-            />
+            {scope.isManagerView ? (
+              <MetricTile
+                label="Hire budget caps"
+                value={
+                  spendData?.summary.budgetCents && spendData.summary.budgetCents > 0
+                    ? `${spendData.summary.utilizationPercent}%`
+                    : "None"
+                }
+                subtitle={
+                  spendData?.summary.budgetCents && spendData.summary.budgetCents > 0
+                    ? `${formatCents(spendData.summary.spendCents)} of ${formatCents(spendData.summary.budgetCents)} combined caps`
+                    : "No monthly caps on your assigned coworkers"
+                }
+                icon={Coins}
+              />
+            ) : (
+              <>
+                <MetricTile
+                  label="Budget"
+                  value={activeBudgetIncidents.length > 0 ? String(activeBudgetIncidents.length) : (
+                    spendData?.summary.budgetCents && spendData.summary.budgetCents > 0
+                      ? `${spendData.summary.utilizationPercent}%`
+                      : "Open"
+                  )}
+                  subtitle={
+                    activeBudgetIncidents.length > 0
+                      ? `${budgetData?.pausedAgentCount ?? 0} agents paused · ${budgetData?.pausedProjectCount ?? 0} projects paused`
+                      : spendData?.summary.budgetCents && spendData.summary.budgetCents > 0
+                        ? `${formatCents(spendData.summary.spendCents)} of ${formatCents(spendData.summary.budgetCents)}`
+                        : "No monthly cap configured"
+                  }
+                  icon={Coins}
+                />
+                <MetricTile
+                  label="Finance net"
+                  value={formatCents(financeData?.summary.netCents ?? 0)}
+                  subtitle={`${formatCents(financeData?.summary.debitCents ?? 0)} debits · ${formatCents(financeData?.summary.creditCents ?? 0)} credits`}
+                  icon={ReceiptText}
+                />
+                <MetricTile
+                  label="Finance events"
+                  value={String(financeData?.summary.eventCount ?? 0)}
+                  subtitle={`${formatCents(financeData?.summary.estimatedDebitCents ?? 0)} estimated in range`}
+                  icon={ArrowUpRight}
+                />
+              </>
+            )}
           </div>
       </div>
 
       <Tabs value={mainTab} onValueChange={(value) => setMainTab(value as typeof mainTab)}>
         <TabsList variant="line" className="justify-start">
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="budgets">Budgets</TabsTrigger>
-          <TabsTrigger value="providers">Providers</TabsTrigger>
-          <TabsTrigger value="billers">Billers</TabsTrigger>
-          <TabsTrigger value="finance">Finance</TabsTrigger>
+          {scope.isManagerView ? null : (
+            <>
+              <TabsTrigger value="budgets">Budgets</TabsTrigger>
+              <TabsTrigger value="providers">Providers</TabsTrigger>
+              <TabsTrigger value="billers">Billers</TabsTrigger>
+              <TabsTrigger value="finance">Finance</TabsTrigger>
+            </>
+          )}
         </TabsList>
 
         <TabsContent value="overview" className="mt-4 space-y-4">
@@ -635,7 +699,7 @@ export function Costs() {
             <p className="text-sm text-destructive">{(overviewError as Error).message}</p>
           ) : (
             <>
-              {activeBudgetIncidents.length > 0 ? (
+              {!scope.isManagerView && activeBudgetIncidents.length > 0 ? (
                 <div className="grid gap-4 xl:grid-cols-2">
                   {activeBudgetIncidents.slice(0, 2).map((incident) => (
                     <BudgetIncidentCard

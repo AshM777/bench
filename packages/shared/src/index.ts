@@ -9,8 +9,10 @@ export {
   AUTH_BASE_URL_MODES,
   AGENT_STATUSES,
   AGENT_ADAPTER_TYPES,
-  AGENT_ROLES,
-  AGENT_ROLE_LABELS,
+  COWORKER_ROLES,
+  COWORKER_ROLE_LABELS,
+  HIRABLE_COWORKER_ROLES,
+  normalizeCoworkerRole,
   AGENT_DEFAULT_MAX_CONCURRENT_RUNS,
   WORKSPACE_BRANCH_ROUTINE_VARIABLE,
   MODEL_PROFILE_KEYS,
@@ -117,7 +119,7 @@ export {
   type AuthBaseUrlMode,
   type AgentStatus,
   type AgentAdapterType,
-  type AgentRole,
+  type CoworkerRole,
   type ModelProfileKey,
   type AgentIconName,
   type IssueStatus,
@@ -421,6 +423,9 @@ export type {
   DashboardRunActivityDay,
   DashboardSummary,
   ActivityEvent,
+  AgentActivityFeedEntry,
+  AgentActivityFeedResponse,
+  AgentActivityFeedSource,
   UserProfileActivitySummary,
   UserProfileAgentUsage,
   UserProfileDailyPoint,
@@ -965,3 +970,17 @@ export type {
   EnvironmentProviderCapability,
   EnvironmentSupportStatus,
 } from "./environment-support.js";
+
+export type {
+  ConnectorCategory,
+  ConnectorDefinition,
+  ConnectorTypicalImportance,
+} from "./connectors/types.js";
+export {
+  CONNECTOR_CATALOG,
+  CONNECTOR_CATEGORY_LABELS,
+  CONNECTOR_CATEGORY_ORDER,
+  getConnectorById,
+  groupedConnectors,
+  listConnectorsByCategory,
+} from "./connectors/catalog.js";

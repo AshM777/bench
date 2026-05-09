@@ -20,14 +20,23 @@ import { ActivityRow } from "../components/ActivityRow";
 import { Identity } from "../components/Identity";
 import { timeAgo } from "../lib/timeAgo";
 import { cn, formatCents } from "../lib/utils";
-import { Bot, CircleDot, DollarSign, ShieldCheck, LayoutDashboard, PauseCircle } from "lucide-react";
+import { Bot, CircleDot, DollarSign, ShieldCheck, LayoutDashboard, PauseCircle, Users } from "lucide-react";
 import { ActiveAgentsPanel } from "../components/ActiveAgentsPanel";
 import { ChartCard, RunActivityChart, PriorityChart, IssueStatusChart, SuccessRateChart } from "../components/ActivityCharts";
 import { PageSkeleton } from "../components/PageSkeleton";
 import type { Agent, Issue } from "@bench/shared";
 import { PluginSlotOutlet } from "@/plugins/slots";
+import { useDashboardAgentScope, useDashboardPersona } from "../context/DashboardPersonaContext";
+import {
+  activityTouchesScopedAgents,
+  issueTouchesScopedAgents,
+  scopedAgentDashboardCounts,
+  taskCountsFromIssues,
+} from "../lib/manager-scope";
+import { computeAdminCoworkerOverview } from "../lib/admin-coworker-stats";
 
 const DASHBOARD_ACTIVITY_LIMIT = 10;
+const DASHBOARD_ACTIVITY_LIMIT_MANAGER = 48;
 
 function getRecentIssues(issues: Issue[]): Issue[] {
   return [...issues]
@@ -49,6 +58,15 @@ export function Dashboard() {
     enabled: !!selectedCompanyId,
   });
 
+  const { persona, isAdminView } = useDashboardPersona();
+  const scope = useDashboardAgentScope(agents);
+  const isManagerView = scope.isManagerView;
+
+  const adminOverview = useMemo(() => computeAdminCoworkerOverview(agents ?? []), [agents]);
+  const scopedAgentIds = scope.scopedAgentIds;
+  const scopedAgents = scope.scopedAgents;
+  const activityFetchLimit = persona === "manager" ? DASHBOARD_ACTIVITY_LIMIT_MANAGER : DASHBOARD_ACTIVITY_LIMIT;
+
   useEffect(() => {
     setBreadcrumbs([{ label: "Dashboard" }]);
   }, [setBreadcrumbs]);
@@ -60,8 +78,8 @@ export function Dashboard() {
   });
 
   const { data: activity } = useQuery({
-    queryKey: [...queryKeys.activity(selectedCompanyId!), { limit: DASHBOARD_ACTIVITY_LIMIT }],
-    queryFn: () => activityApi.list(selectedCompanyId!, { limit: DASHBOARD_ACTIVITY_LIMIT }),
+    queryKey: [...queryKeys.activity(selectedCompanyId!), { limit: activityFetchLimit }],
+    queryFn: () => activityApi.list(selectedCompanyId!, { limit: activityFetchLimit }),
     enabled: !!selectedCompanyId,
   });
 
@@ -88,8 +106,20 @@ export function Dashboard() {
     [companyMembers?.users],
   );
 
-  const recentIssues = issues ? getRecentIssues(issues) : [];
-  const recentActivity = useMemo(() => (activity ?? []).slice(0, 10), [activity]);
+  const scopedIssues = useMemo(() => {
+    if (!issues) return [];
+    if (!isManagerView || !scopedAgentIds) return issues;
+    return issues.filter((i) => issueTouchesScopedAgents(i, scopedAgentIds));
+  }, [issues, isManagerView, scopedAgentIds]);
+
+  const scopedActivity = useMemo(() => {
+    if (!activity) return [];
+    if (!isManagerView || !scopedAgentIds) return activity;
+    return activity.filter((e) => activityTouchesScopedAgents(e, scopedAgentIds));
+  }, [activity, isManagerView, scopedAgentIds]);
+
+  const recentIssues = scopedIssues.length ? getRecentIssues(scopedIssues) : [];
+  const recentActivity = useMemo(() => scopedActivity.slice(0, 10), [scopedActivity]);
 
   useEffect(() => {
     for (const timer of activityAnimationTimersRef.current) {
@@ -154,29 +184,55 @@ export function Dashboard() {
 
   const entityNameMap = useMemo(() => {
     const map = new Map<string, string>();
-    for (const i of issues ?? []) map.set(`issue:${i.id}`, i.identifier ?? i.id.slice(0, 8));
+    const issueRows = isManagerView ? scopedIssues : (issues ?? []);
+    for (const i of issueRows) map.set(`issue:${i.id}`, i.identifier ?? i.id.slice(0, 8));
     for (const a of agents ?? []) map.set(`agent:${a.id}`, a.name);
     for (const p of projects ?? []) map.set(`project:${p.id}`, p.name);
     return map;
-  }, [issues, agents, projects]);
+  }, [issues, agents, projects, isManagerView, scopedIssues]);
 
   const entityTitleMap = useMemo(() => {
     const map = new Map<string, string>();
-    for (const i of issues ?? []) map.set(`issue:${i.id}`, i.title);
+    const issueRows = isManagerView ? scopedIssues : (issues ?? []);
+    for (const i of issueRows) map.set(`issue:${i.id}`, i.title);
     return map;
-  }, [issues]);
+  }, [issues, isManagerView, scopedIssues]);
 
   const agentName = (id: string | null) => {
     if (!id || !agents) return null;
     return agents.find((a) => a.id === id)?.name ?? null;
   };
 
+  const managerAgentCounts = useMemo(() => scopedAgentDashboardCounts(scopedAgents), [scopedAgents]);
+  const managerTaskCounts = useMemo(() => taskCountsFromIssues(scopedIssues), [scopedIssues]);
+  const managerMonthSpendCents = useMemo(
+    () => scopedAgents.reduce((sum, a) => sum + a.spentMonthlyCents, 0),
+    [scopedAgents],
+  );
+  const managerMonthBudgetCents = useMemo(
+    () => scopedAgents.reduce((sum, a) => sum + a.budgetMonthlyCents, 0),
+    [scopedAgents],
+  );
+  const managerBudgetUtilPercent =
+    managerMonthBudgetCents > 0
+      ? Math.min(100, Math.round((managerMonthSpendCents / managerMonthBudgetCents) * 100))
+      : 0;
+  const scopedBudgetPausedCount = useMemo(
+    () => scopedAgents.filter((a) => a.pauseReason === "budget").length,
+    [scopedAgents],
+  );
+  const managerAgentsEnabledTotal =
+    managerAgentCounts.active +
+    managerAgentCounts.running +
+    managerAgentCounts.paused +
+    managerAgentCounts.error;
+
   if (!selectedCompanyId) {
     if (companies.length === 0) {
       return (
         <EmptyState
           icon={LayoutDashboard}
-          message="Welcome to Bench. Set up your first company and agent to get started."
+          message="Welcome to Bench. Set up your first company and coworker to get started."
           action="Get Started"
           onAction={openOnboarding}
         />
@@ -197,12 +253,29 @@ export function Dashboard() {
     <div className="space-y-6">
       {error && <p className="text-sm text-destructive">{error.message}</p>}
 
+      {isManagerView && (!scope.sessionEmail || scopedAgents.length === 0) ? (
+        <div className="rounded-md border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+          {!scope.sessionEmail ? (
+            <p>
+              <span className="font-medium text-foreground">Manager view</span> needs a signed-in user email to match
+              coworkers assigned to you.
+            </p>
+          ) : (
+            <p>
+              No coworkers list you as their manager yet. Ask an admin to set agent metadata{" "}
+              <code className="rounded border border-border bg-background px-1 py-0.5 text-xs">benchManagerEmail</code>{" "}
+              to <span className="font-medium text-foreground">{scope.sessionEmail}</span>.
+            </p>
+          )}
+        </div>
+      ) : null}
+
       {hasNoAgents && (
         <div className="flex items-center justify-between gap-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-500/25 dark:bg-amber-950/60">
           <div className="flex items-center gap-2.5">
             <Bot className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
             <p className="text-sm text-amber-900 dark:text-amber-100">
-              You have no agents.
+              You have no coworkers yet.
             </p>
           </div>
           <button
@@ -214,11 +287,16 @@ export function Dashboard() {
         </div>
       )}
 
-      <ActiveAgentsPanel companyId={selectedCompanyId!} />
+      {!isAdminView ? (
+        <ActiveAgentsPanel
+          companyId={selectedCompanyId!}
+          scopedAgentIds={isManagerView && scopedAgentIds ? scopedAgentIds : undefined}
+        />
+      ) : null}
 
       {data && (
         <>
-          {data.budgets.activeIncidents > 0 ? (
+          {!isManagerView && data.budgets.activeIncidents > 0 ? (
             <div className="flex items-start justify-between gap-3 rounded-xl border border-red-500/20 bg-[linear-gradient(180deg,rgba(255,80,80,0.12),rgba(255,255,255,0.02))] px-4 py-3">
               <div className="flex items-start gap-2.5">
                 <PauseCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-300" />
@@ -227,7 +305,7 @@ export function Dashboard() {
                     {data.budgets.activeIncidents} active budget incident{data.budgets.activeIncidents === 1 ? "" : "s"}
                   </p>
                   <p className="text-xs text-red-100/70">
-                    {data.budgets.pausedAgents} agents paused · {data.budgets.pausedProjects} projects paused · {data.budgets.pendingApprovals} pending budget approvals
+                    {data.budgets.pausedAgents} coworkers paused · {data.budgets.pausedProjects} projects paused · {data.budgets.pendingApprovals} pending budget approvals
                   </p>
                 </div>
               </div>
@@ -237,74 +315,214 @@ export function Dashboard() {
             </div>
           ) : null}
 
-          <div className="grid grid-cols-2 xl:grid-cols-4 gap-1 sm:gap-2">
-            <MetricCard
-              icon={Bot}
-              value={data.agents.active + data.agents.running + data.agents.paused + data.agents.error}
-              label="Agents Enabled"
-              to="/agents"
-              description={
-                <span>
-                  {data.agents.running} running{", "}
-                  {data.agents.paused} paused{", "}
-                  {data.agents.error} errors
-                </span>
-              }
-            />
-            <MetricCard
-              icon={CircleDot}
-              value={data.tasks.inProgress}
-              label="Tasks In Progress"
-              to="/issues"
-              description={
-                <span>
-                  {data.tasks.open} open{", "}
-                  {data.tasks.blocked} blocked
-                </span>
-              }
-            />
-            <MetricCard
-              icon={DollarSign}
-              value={formatCents(data.costs.monthSpendCents)}
-              label="Month Spend"
-              to="/costs"
-              description={
-                <span>
-                  {data.costs.monthBudgetCents > 0
-                    ? `${data.costs.monthUtilizationPercent}% of ${formatCents(data.costs.monthBudgetCents)} budget`
-                    : "Unlimited budget"}
-                </span>
-              }
-            />
-            <MetricCard
-              icon={ShieldCheck}
-              value={data.pendingApprovals + data.budgets.pendingApprovals}
-              label="Pending Approvals"
-              to="/approvals"
-              description={
-                <span>
-                  {data.budgets.pendingApprovals > 0
-                    ? `${data.budgets.pendingApprovals} budget overrides awaiting board review`
-                    : "Awaiting board review"}
-                </span>
-              }
-            />
+          {isManagerView && scopedBudgetPausedCount > 0 ? (
+            <div className="flex items-start justify-between gap-3 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] px-4 py-3">
+              <div className="flex items-start gap-2.5">
+                <PauseCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    {scopedBudgetPausedCount} coworker{scopedBudgetPausedCount === 1 ? "" : "s"} paused by budget
+                  </p>
+                  <p className="text-xs text-muted-foreground">Spend limits apply per hire; admins manage company caps.</p>
+                </div>
+              </div>
+              <Link to="/costs" className="text-sm underline underline-offset-2 text-foreground">
+                View costs
+              </Link>
+            </div>
+          ) : null}
+
+          <div
+            className={cn(
+              "grid grid-cols-2 gap-1 sm:gap-2",
+              isAdminView ? "xl:grid-cols-5" : isManagerView ? "xl:grid-cols-3" : "xl:grid-cols-3",
+            )}
+          >
+            {isAdminView ? (
+              <>
+                <MetricCard
+                  icon={Bot}
+                  value={adminOverview.totalCoworkers}
+                  label="Coworkers hired"
+                  to="/agents"
+                  description={<span>Active hires (not terminated)</span>}
+                />
+                <MetricCard
+                  icon={Users}
+                  value={adminOverview.managerCount}
+                  label="People managers"
+                  to="/agents"
+                  description={<span>Distinct manager emails on hires</span>}
+                />
+                <MetricCard
+                  icon={CircleDot}
+                  value={adminOverview.unassignedCoworkers}
+                  label="Unassigned hires"
+                  to="/agents"
+                  description={<span>Set manager email on hire or Configuration</span>}
+                />
+                <MetricCard
+                  icon={DollarSign}
+                  value={formatCents(data.costs.monthSpendCents)}
+                  label="Company month spend"
+                  to="/costs"
+                  description={
+                    <span>
+                      {data.costs.monthBudgetCents > 0
+                        ? `${data.costs.monthUtilizationPercent}% of ${formatCents(data.costs.monthBudgetCents)} cap`
+                        : "No company monthly cap"}
+                    </span>
+                  }
+                />
+                <MetricCard
+                  icon={ShieldCheck}
+                  value={data.pendingApprovals + data.budgets.pendingApprovals}
+                  label="Pending approvals"
+                  to="/approvals"
+                  description={
+                    <span>
+                      {data.budgets.pendingApprovals > 0
+                        ? `${data.budgets.pendingApprovals} budget-related`
+                        : "Hires and policy reviews"}
+                    </span>
+                  }
+                />
+              </>
+            ) : isManagerView ? (
+              <>
+                <MetricCard
+                  icon={Bot}
+                  value={managerAgentsEnabledTotal}
+                  label="Your coworkers"
+                  to="/agents"
+                  description={
+                    <span>
+                      {managerAgentCounts.running} running{", "}
+                      {managerAgentCounts.paused} paused{", "}
+                      {managerAgentCounts.error} errors
+                    </span>
+                  }
+                />
+                <MetricCard
+                  icon={CircleDot}
+                  value={managerTaskCounts.inProgress}
+                  label="Tasks In Progress"
+                  to="/issues"
+                  description={
+                    <span>
+                      {managerTaskCounts.open} open{", "}
+                      {managerTaskCounts.blocked} blocked
+                    </span>
+                  }
+                />
+                <MetricCard
+                  icon={DollarSign}
+                  value={formatCents(managerMonthSpendCents)}
+                  label="Month Spend (team)"
+                  to="/costs"
+                  description={
+                    <span>
+                      {managerMonthBudgetCents > 0
+                        ? `${managerBudgetUtilPercent}% of ${formatCents(managerMonthBudgetCents)} hire budgets`
+                        : "No per-hire monthly cap"}
+                    </span>
+                  }
+                />
+              </>
+            ) : null}
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <ChartCard title="Run Activity" subtitle="Last 14 days">
-              <RunActivityChart activity={data.runActivity} />
-            </ChartCard>
-            <ChartCard title="Issues by Priority" subtitle="Last 14 days">
-              <PriorityChart issues={issues ?? []} />
-            </ChartCard>
-            <ChartCard title="Issues by Status" subtitle="Last 14 days">
-              <IssueStatusChart issues={issues ?? []} />
-            </ChartCard>
-            <ChartCard title="Success Rate" subtitle="Last 14 days">
-              <SuccessRateChart activity={data.runActivity} />
-            </ChartCard>
-          </div>
+          {isAdminView && adminOverview.managerRows.length > 0 ? (
+            <div className="rounded-lg border border-border overflow-hidden">
+              <div className="px-4 py-3 border-b border-border bg-muted/30">
+                <h3 className="text-sm font-semibold text-foreground">Spend by people manager</h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Approximation: sum of each hire&apos;s <code className="text-[10px]">spentMonthlyCents</code> grouped by{" "}
+                  <code className="text-[10px]">benchManagerEmail</code>.
+                </p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-left text-muted-foreground">
+                      <th className="px-4 py-2 font-medium">Manager email</th>
+                      <th className="px-4 py-2 font-medium tabular-nums">Coworkers</th>
+                      <th className="px-4 py-2 font-medium tabular-nums">Month spend (hires)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {adminOverview.managerRows.map((row) => (
+                      <tr key={row.managerEmail} className="border-b border-border last:border-b-0">
+                        <td className="px-4 py-2 font-mono text-xs">{row.managerEmail}</td>
+                        <td className="px-4 py-2 tabular-nums">{row.coworkerCount}</td>
+                        <td className="px-4 py-2 tabular-nums">{formatCents(row.monthSpendCents)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : null}
+
+          {isAdminView ? (
+            <div className="grid md:grid-cols-2 gap-4">
+              <ChartCard title="Run activity" subtitle="Last 14 days · company">
+                <RunActivityChart activity={data.runActivity} />
+              </ChartCard>
+              <ChartCard title="Success rate" subtitle="Last 14 days · company">
+                <SuccessRateChart activity={data.runActivity} />
+              </ChartCard>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <ChartCard title="Run Activity" subtitle="Last 14 days">
+                {isManagerView ? (
+                  <p className="text-xs text-muted-foreground">
+                    Company-wide run volume is hidden in Manager view. Open a coworker to see their runs and activity.
+                  </p>
+                ) : (
+                  <RunActivityChart activity={data.runActivity} />
+                )}
+              </ChartCard>
+              <ChartCard title="Issues by Priority" subtitle="Last 14 days">
+                <PriorityChart issues={isManagerView ? scopedIssues : (issues ?? [])} />
+              </ChartCard>
+              <ChartCard title="Issues by Status" subtitle="Last 14 days">
+                <IssueStatusChart issues={isManagerView ? scopedIssues : (issues ?? [])} />
+              </ChartCard>
+              <ChartCard title="Success Rate" subtitle="Last 14 days">
+                {isManagerView ? (
+                  <p className="text-xs text-muted-foreground">
+                    Success rates for the whole company are available in Admin view.
+                  </p>
+                ) : (
+                  <SuccessRateChart activity={data.runActivity} />
+                )}
+              </ChartCard>
+            </div>
+          )}
+
+          {isManagerView && scopedAgents.length > 0 && scope.sessionEmail ? (
+            <div className="rounded-lg border border-border bg-muted/20 px-4 py-3 space-y-2">
+              <h3 className="text-sm font-semibold text-foreground">Once a coworker is assigned to you</h3>
+              <ol className="text-sm text-muted-foreground list-decimal pl-4 space-y-1">
+                <li>
+                  Open <strong>Connectors</strong> and confirm IT has wired the apps your team uses; add the coworker to
+                  the right channels or drives.
+                </li>
+                <li>
+                  Edit <strong>Instructions</strong> with team norms, ticket conventions, and escalation rules.
+                </li>
+                <li>
+                  Run a small <strong>test issue</strong> or <strong>routine</strong> and watch <strong>Activity</strong>{" "}
+                  for auth errors.
+                </li>
+                <li>
+                  Check <strong>Costs</strong> so per-hire budgets match expectations.
+                </li>
+              </ol>
+            </div>
+          ) : null}
 
           <PluginSlotOutlet
             slotTypes={["dashboardWidget"]}
@@ -313,7 +531,7 @@ export function Dashboard() {
             itemClassName="rounded-lg border bg-card p-4 shadow-sm"
           />
 
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className={cn("grid gap-4", !isAdminView ? "md:grid-cols-2" : "md:grid-cols-1")}>
             {/* Recent Activity */}
             {recentActivity.length > 0 && (
               <div className="min-w-0">
@@ -336,7 +554,8 @@ export function Dashboard() {
               </div>
             )}
 
-            {/* Recent Tasks */}
+            {/* Recent Tasks — managers & operators; admins use Approvals + hires */}
+            {!isAdminView ? (
             <div className="min-w-0">
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
                 Recent Tasks
@@ -387,6 +606,7 @@ export function Dashboard() {
                 </div>
               )}
             </div>
+            ) : null}
           </div>
 
         </>

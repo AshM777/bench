@@ -40,8 +40,8 @@ vi.mock("../components/AgentIconPicker", () => ({
 const orgTree = [
   {
     id: "agent-1",
-    name: "CEO",
-    role: "ceo",
+    name: "Admin",
+    role: "admin",
     status: "active",
     reports: [
       {
@@ -59,8 +59,8 @@ const agents = [
   {
     id: "agent-1",
     companyId: "company-1",
-    name: "CEO",
-    role: "ceo",
+    name: "Admin",
+    role: "admin",
     title: null,
     status: "active",
     reportsTo: null,
@@ -75,7 +75,7 @@ const agents = [
     metadata: null,
     createdAt: new Date("2026-04-01T00:00:00.000Z"),
     updatedAt: new Date("2026-04-01T00:00:00.000Z"),
-    urlKey: "ceo",
+    urlKey: "admin",
     pauseReason: null,
     pausedAt: null,
     permissions: null,
@@ -243,7 +243,7 @@ describe("OrgChart mobile gestures", () => {
       card.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
     });
 
-    expect(navigateMock).toHaveBeenCalledWith("/agents/ceo");
+    expect(navigateMock).toHaveBeenCalledWith("/agents/admin");
   });
   it("pinch-zooms toward the touch center", async () => {
     const { viewport, layer } = await renderOrgChart();

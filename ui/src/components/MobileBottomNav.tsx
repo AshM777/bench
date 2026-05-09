@@ -6,12 +6,17 @@ import {
   SquarePen,
   Users,
   Inbox,
+  UserPlus,
+  ListChecks,
+  DollarSign,
 } from "lucide-react";
 import { useCompany } from "../context/CompanyContext";
 import { useDialogActions } from "../context/DialogContext";
 import { SIDEBAR_SCROLL_RESET_STATE } from "../lib/navigation-scroll";
 import { cn } from "../lib/utils";
 import { useInboxBadge } from "../hooks/useInboxBadge";
+import { useDashboardPersona } from "../context/DashboardPersonaContext";
+import { CX } from "../lib/coworker-language";
 
 interface MobileBottomNavProps {
   visible: boolean;
@@ -37,15 +42,25 @@ type MobileNavItem = MobileNavLinkItem | MobileNavActionItem;
 export function MobileBottomNav({ visible }: MobileBottomNavProps) {
   const location = useLocation();
   const { selectedCompanyId } = useCompany();
-  const { openNewIssue } = useDialogActions();
+  const { openNewIssue, openNewAgent } = useDialogActions();
   const inboxBadge = useInboxBadge(selectedCompanyId);
+  const { isAdminView } = useDashboardPersona();
 
-  const items = useMemo<MobileNavItem[]>(
-    () => [
+  const items = useMemo<MobileNavItem[]>(() => {
+    if (isAdminView) {
+      return [
+        { type: "link", to: "/dashboard", label: "Home", icon: House },
+        { type: "link", to: "/agents/all", label: CX.Coworkers, icon: Users },
+        { type: "action", label: "Hire", icon: UserPlus, onClick: () => openNewAgent() },
+        { type: "link", to: "/approvals/pending", label: "Approvals", icon: ListChecks },
+        { type: "link", to: "/costs", label: "Costs", icon: DollarSign },
+      ];
+    }
+    return [
       { type: "link", to: "/dashboard", label: "Home", icon: House },
       { type: "link", to: "/issues", label: "Issues", icon: CircleDot },
       { type: "action", label: "Create", icon: SquarePen, onClick: () => openNewIssue() },
-      { type: "link", to: "/agents/all", label: "Agents", icon: Users },
+      { type: "link", to: "/agents/all", label: CX.Coworkers, icon: Users },
       {
         type: "link",
         to: "/inbox",
@@ -53,9 +68,8 @@ export function MobileBottomNav({ visible }: MobileBottomNavProps) {
         icon: Inbox,
         badge: inboxBadge.inbox,
       },
-    ],
-    [openNewIssue, inboxBadge.inbox],
-  );
+    ];
+  }, [isAdminView, openNewIssue, openNewAgent, inboxBadge.inbox]);
 
   return (
     <nav

@@ -118,7 +118,7 @@ import {
   MoreHorizontal,
   MoreVertical,
   PauseCircle,
-  Bench,
+  Paperclip,
   PlayCircle,
   Plus,
   Repeat,
@@ -339,7 +339,7 @@ function ActorIdentity({ evt, agentMap, userProfileMap }: { evt: ActivityEvent; 
   if (evt.actorType === "system") return <Identity name="System" size="sm" />;
   if (evt.actorType === "user") {
     const profile = userProfileMap?.get(id);
-    return <Identity name={profile?.label ?? "Board"} avatarUrl={profile?.image} size="sm" />;
+    return <Identity name={profile?.label ?? "Admin"} avatarUrl={profile?.image} size="sm" />;
   }
   return <Identity name={id || "Unknown"} size="sm" />;
 }
@@ -2943,7 +2943,7 @@ export function IssueDetail() {
           attachmentDragActive && "border-primary bg-primary/5",
         )}
       >
-        <Bench className="h-3.5 w-3.5 mr-1.5" />
+        <Paperclip className="h-3.5 w-3.5 mr-1.5" />
         {uploadAttachment.isPending || importMarkdownDocument.isPending ? "Uploading..." : (
           <>
             <span className="hidden sm:inline">Upload attachment</span>

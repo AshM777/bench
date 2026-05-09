@@ -697,10 +697,10 @@ export function CompanyImport() {
     queryFn: () => agentsApi.list(selectedCompanyId!),
     enabled: Boolean(selectedCompanyId),
   });
-  const ceoAdapterType = useMemo(() => {
+  const adminAdapterType = useMemo(() => {
     if (!companyAgents) return "claude_local";
-    const ceo = companyAgents.find((a) => a.role === "ceo");
-    return ceo?.adapterType ?? "claude_local";
+    const admin = companyAgents.find((a) => a.role === "admin");
+    return admin?.adapterType ?? "claude_local";
   }, [companyAgents]);
 
   const localZipHelpText =
@@ -764,7 +764,7 @@ export function CompanyImport() {
       // Initialize adapter overrides — default all agents to the CEO's adapter type
       const defaultAdapters: Record<string, string> = {};
       for (const agent of result.manifest.agents) {
-        defaultAdapters[agent.slug] = ceoAdapterType;
+        defaultAdapters[agent.slug] = adminAdapterType;
       }
       setAdapterOverrides(defaultAdapters);
       setAdapterExpandedSlugs(new Set());
@@ -920,7 +920,7 @@ export function CompanyImport() {
       if (isSkipped) continue;
       const renamedTo = nameOverrides[c.slug] ?? c.plannedName;
       if (renamedTo === c.originalName) continue;
-      // Map the parent directory (e.g. agents/ceo → gstack-ceo) for the file tree
+      // Map the parent directory (e.g. agents/admin → gstack-admin) for the file tree
       const parentDir = c.filePath.split("/").slice(0, -1).join("/");
       if (parentDir) map.set(parentDir, renamedTo);
       // Map the file path too — used by the preview header, not shown in tree

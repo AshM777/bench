@@ -175,7 +175,7 @@ const kanbanIssues: Issue[] = [
     title: "Sketch company analytics dashboard",
     status: "backlog",
     priority: "low",
-    assigneeAgentId: "agent-cto",
+    assigneeAgentId: "agent-lead",
   }),
   createIssue({
     id: "issue-kanban-cancelled",

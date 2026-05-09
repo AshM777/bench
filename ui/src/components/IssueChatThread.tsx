@@ -106,7 +106,7 @@ import { cn, formatDateTime, formatShortDate } from "../lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertTriangle, ArrowRight, Brain, Check, ChevronDown, Copy, Hammer, Loader2, MoreHorizontal, Bench, PauseCircle, Search, Square, ThumbsDown, ThumbsUp } from "lucide-react";
+import { AlertTriangle, ArrowRight, Brain, Check, ChevronDown, Copy, Hammer, Loader2, MoreHorizontal, Paperclip, PauseCircle, Search, Square, ThumbsDown, ThumbsUp } from "lucide-react";
 import { IssueBlockedNotice } from "./IssueBlockedNotice";
 
 interface IssueChatMessageContext {
@@ -610,7 +610,7 @@ function formatTimelineAssigneeLabel(
     return agentMap?.get(assignee.agentId)?.name ?? assignee.agentId.slice(0, 8);
   }
   if (assignee.userId) {
-    return formatAssigneeUserLabel(assignee.userId, currentUserId, userLabelMap) ?? "Board";
+    return formatAssigneeUserLabel(assignee.userId, currentUserId, userLabelMap) ?? "Admin";
   }
   return "Unassigned";
 }
@@ -635,7 +635,7 @@ function formatInteractionActorLabel(args: {
   if (userId) {
     return userLabelMap?.get(userId)
       ?? formatAssigneeUserLabel(userId, currentUserId, userLabelMap)
-      ?? "Board";
+      ?? "Admin";
   }
   return "System";
 }
@@ -651,7 +651,7 @@ export function resolveIssueChatHumanAuthor(args: {
   const isCurrentUser = Boolean(authorUserId && currentUserId && authorUserId === currentUserId);
   const resolvedAuthorName = profile?.label?.trim()
     || authorName?.trim()
-    || (authorUserId === "local-board" ? "Board" : (isCurrentUser ? "You" : "User"));
+    || (authorUserId === "local-board" ? "Admin" : (isCurrentUser ? "You" : "User"));
 
   return {
     isCurrentUser,
@@ -2921,7 +2921,7 @@ const IssueChatComposer = forwardRef<IssueChatComposerHandle, IssueChatComposerP
         >
           <div className="flex max-w-md items-center gap-3 rounded-md bg-background/80 px-3 py-2 text-left shadow-sm ring-1 ring-border/60">
             <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-              <Bench className="h-4 w-4" />
+              <Paperclip className="h-4 w-4" />
             </span>
             <div className="min-w-0">
               <div className="text-sm font-medium text-foreground">Drop to upload</div>
@@ -3013,7 +3013,7 @@ const IssueChatComposer = forwardRef<IssueChatComposerHandle, IssueChatComposerP
               disabled={attaching}
               title="Attach file"
             >
-              <Bench className="h-4 w-4" />
+              <Paperclip className="h-4 w-4" />
             </Button>
           </div>
         ) : null}

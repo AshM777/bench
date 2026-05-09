@@ -1,6 +1,7 @@
 import type {
   Agent,
   AgentDetail,
+  AgentActivityFeedResponse,
   AgentInstructionsBundle,
   AgentInstructionsFileDetail,
   AgentSkillSnapshot,
@@ -81,6 +82,13 @@ function agentPath(id: string, companyId?: string, suffix = "") {
 
 export const agentsApi = {
   list: (companyId: string) => api.get<Agent[]>(`/companies/${companyId}/agents`),
+  activityFeed: (companyId: string, agentId: string, options?: { limit?: number }) => {
+    const q =
+      options?.limit !== undefined ? `?limit=${encodeURIComponent(String(options.limit))}` : "";
+    return api.get<AgentActivityFeedResponse>(
+      `/companies/${encodeURIComponent(companyId)}/agents/${encodeURIComponent(agentId)}/activity${q}`,
+    );
+  },
   org: (companyId: string) => api.get<OrgNode[]>(`/companies/${companyId}/org`),
   listConfigurations: (companyId: string) =>
     api.get<Record<string, unknown>[]>(`/companies/${companyId}/agent-configurations`),

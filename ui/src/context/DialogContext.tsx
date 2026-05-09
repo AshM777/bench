@@ -23,7 +23,7 @@ interface NewGoalDefaults {
 }
 
 interface OnboardingOptions {
-  initialStep?: 1 | 2 | 3 | 4;
+  initialStep?: 1 | 2 | 3;
   companyId?: string;
 }
 
@@ -42,6 +42,9 @@ interface DialogContextValue {
   newAgentOpen: boolean;
   openNewAgent: () => void;
   closeNewAgent: () => void;
+  requestCoworkerHireOpen: boolean;
+  openRequestCoworkerHire: () => void;
+  closeRequestCoworkerHire: () => void;
   onboardingOpen: boolean;
   onboardingOptions: OnboardingOptions;
   openOnboarding: (options?: OnboardingOptions) => void;
@@ -56,6 +59,7 @@ type DialogStateValue = Pick<
   | "newGoalOpen"
   | "newGoalDefaults"
   | "newAgentOpen"
+  | "requestCoworkerHireOpen"
   | "onboardingOpen"
   | "onboardingOptions"
 >;
@@ -72,6 +76,7 @@ export function DialogProvider({ children }: { children: ReactNode }) {
   const [newGoalOpen, setNewGoalOpen] = useState(false);
   const [newGoalDefaults, setNewGoalDefaults] = useState<NewGoalDefaults>({});
   const [newAgentOpen, setNewAgentOpen] = useState(false);
+  const [requestCoworkerHireOpen, setRequestCoworkerHireOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [onboardingOptions, setOnboardingOptions] = useState<OnboardingOptions>({});
 
@@ -111,6 +116,14 @@ export function DialogProvider({ children }: { children: ReactNode }) {
     setNewAgentOpen(false);
   }, []);
 
+  const openRequestCoworkerHire = useCallback(() => {
+    setRequestCoworkerHireOpen(true);
+  }, []);
+
+  const closeRequestCoworkerHire = useCallback(() => {
+    setRequestCoworkerHireOpen(false);
+  }, []);
+
   const openOnboarding = useCallback((options: OnboardingOptions = {}) => {
     setOnboardingOptions(options);
     setOnboardingOpen(true);
@@ -129,6 +142,7 @@ export function DialogProvider({ children }: { children: ReactNode }) {
       newGoalOpen,
       newGoalDefaults,
       newAgentOpen,
+      requestCoworkerHireOpen,
       onboardingOpen,
       onboardingOptions,
     }),
@@ -139,6 +153,7 @@ export function DialogProvider({ children }: { children: ReactNode }) {
       newGoalOpen,
       newGoalDefaults,
       newAgentOpen,
+      requestCoworkerHireOpen,
       onboardingOpen,
       onboardingOptions,
     ],
@@ -154,6 +169,8 @@ export function DialogProvider({ children }: { children: ReactNode }) {
       closeNewGoal,
       openNewAgent,
       closeNewAgent,
+      openRequestCoworkerHire,
+      closeRequestCoworkerHire,
       openOnboarding,
       closeOnboarding,
     }),
@@ -166,6 +183,8 @@ export function DialogProvider({ children }: { children: ReactNode }) {
       closeNewGoal,
       openNewAgent,
       closeNewAgent,
+      openRequestCoworkerHire,
+      closeRequestCoworkerHire,
       openOnboarding,
       closeOnboarding,
     ],

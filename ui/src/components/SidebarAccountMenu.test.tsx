@@ -4,6 +4,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DashboardPersonaProvider } from "../context/DashboardPersonaContext";
 import { SidebarAccountMenu } from "./SidebarAccountMenu";
 
 const mockAuthApi = vi.hoisted(() => ({
@@ -83,11 +84,13 @@ describe("SidebarAccountMenu", () => {
     await act(async () => {
       root.render(
         <QueryClientProvider client={queryClient}>
-          <SidebarAccountMenu
-            deploymentMode="authenticated"
-            instanceSettingsTarget="/instance/settings/general"
-            version="1.2.3"
-          />
+          <DashboardPersonaProvider>
+            <SidebarAccountMenu
+              deploymentMode="authenticated"
+              instanceSettingsTarget="/instance/settings/general"
+              version="1.2.3"
+            />
+          </DashboardPersonaProvider>
         </QueryClientProvider>,
       );
     });
@@ -106,6 +109,7 @@ describe("SidebarAccountMenu", () => {
     await flushReact();
 
     expect(document.body.textContent).toContain("Edit profile");
+    expect(document.body.textContent).toContain("Switch to Manager profile");
     expect(document.body.textContent).toContain("Documentation");
     expect(document.body.textContent).toContain("Bench v1.2.3");
     expect(document.body.textContent).toContain("jane@example.com");

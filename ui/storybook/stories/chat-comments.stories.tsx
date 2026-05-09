@@ -33,7 +33,7 @@ type StoryComment = IssueComment & {
 
 const codexAgent = storybookAgents.find((agent) => agent.id === "agent-codex") ?? storybookAgents[0]!;
 const qaAgent = storybookAgents.find((agent) => agent.id === "agent-qa") ?? storybookAgents[1]!;
-const ctoAgent = storybookAgents.find((agent) => agent.id === "agent-cto") ?? storybookAgents[2]!;
+const leadAgent = storybookAgents.find((agent) => agent.id === "agent-lead") ?? storybookAgents[2]!;
 
 const boardUserLabels = new Map<string, string>([
   ["user-board", "Riley Board"],
@@ -147,9 +147,9 @@ const reassignOptions: InlineEntityOption[] = [
     searchText: `${qaAgent.name} qa browser review`,
   },
   {
-    id: `agent:${ctoAgent.id}`,
-    label: ctoAgent.name,
-    searchText: `${ctoAgent.name} architecture review`,
+    id: `agent:${leadAgent.id}`,
+    label: leadAgent.name,
+    searchText: `${leadAgent.name} architecture review`,
   },
   {
     id: `user:${currentUserId}`,

@@ -2066,14 +2066,14 @@ type JoinRequestManagerCandidate = {
 export function resolveJoinRequestAgentManagerId(
   candidates: JoinRequestManagerCandidate[]
 ): string | null {
-  const ceoCandidates = candidates.filter(
-    (candidate) => candidate.role === "ceo"
+  const adminCandidates = candidates.filter(
+    (candidate) => candidate.role === "admin"
   );
-  if (ceoCandidates.length === 0) return null;
-  const rootCeo = ceoCandidates.find(
+  if (adminCandidates.length === 0) return null;
+  const rootAdmin = adminCandidates.find(
     (candidate) => candidate.reportsTo === null
   );
-  return (rootCeo ?? ceoCandidates[0] ?? null)?.id ?? null;
+  return (rootAdmin ?? adminCandidates[0] ?? null)?.id ?? null;
 }
 
 function isInviteTokenHashCollisionError(error: unknown) {
@@ -2698,8 +2698,8 @@ export function accessRoutes(
       if (!actorAgent || actorAgent.companyId !== companyId) {
         throw forbidden("Agent key cannot access another company");
       }
-      if (actorAgent.role !== "ceo") {
-        throw forbidden("Only CEO agents can generate OpenClaw invite prompts");
+      if (actorAgent.role !== "admin") {
+        throw forbidden("Only Admin coworkers can generate OpenClaw invite prompts");
       }
       return;
     }
@@ -3763,7 +3763,7 @@ export function accessRoutes(
         const managerId = resolveJoinRequestAgentManagerId(existingAgents);
         if (!managerId) {
           throw conflict(
-            "Join request cannot be approved because this company has no active CEO"
+            "Join request cannot be approved because this company has no active Admin coworker"
           );
         }
 

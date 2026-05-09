@@ -115,9 +115,9 @@ function createZipArchiveWithDirectoryEntries(rootPath: string) {
   const entries = [
     { path: `${rootPath}/`, body: new Uint8Array(0), compressionMethod: 0 },
     { path: `${rootPath}/agents/`, body: new Uint8Array(0), compressionMethod: 0 },
-    { path: `${rootPath}/agents/ceo/`, body: new Uint8Array(0), compressionMethod: 0 },
+    { path: `${rootPath}/agents/admin/`, body: new Uint8Array(0), compressionMethod: 0 },
     { path: `${rootPath}/COMPANY.md`, body: encoder.encode("# Company\n"), compressionMethod: 8 },
-    { path: `${rootPath}/agents/ceo/AGENTS.md`, body: encoder.encode("# CEO\n"), compressionMethod: 8 },
+    { path: `${rootPath}/agents/admin/AGENTS.md`, body: encoder.encode("# Admin\n"), compressionMethod: 8 },
   ].map((entry) => ({
     ...entry,
     data: entry.compressionMethod === 8 ? new Uint8Array(deflateRawSync(entry.body)) : entry.body,
@@ -187,7 +187,7 @@ describe("createZipArchive", () => {
     const archive = createZipArchive(
       {
         "COMPANY.md": "# Company\n",
-        "agents/ceo/AGENTS.md": "# CEO\n",
+        "agents/admin/AGENTS.md": "# Admin\n",
       },
       "bench-demo",
     );
@@ -196,8 +196,8 @@ describe("createZipArchive", () => {
 
     const firstNameLength = readUint16(archive, 26);
     const firstBodyLength = readUint32(archive, 18);
-    expect(readString(archive, 30, firstNameLength)).toBe("bench-demo/agents/ceo/AGENTS.md");
-    expect(readString(archive, 30 + firstNameLength, firstBodyLength)).toBe("# CEO\n");
+    expect(readString(archive, 30, firstNameLength)).toBe("bench-demo/agents/admin/AGENTS.md");
+    expect(readString(archive, 30 + firstNameLength, firstBodyLength)).toBe("# Admin\n");
 
     const secondOffset = 30 + firstNameLength + firstBodyLength;
     expect(readUint32(archive, secondOffset)).toBe(0x04034b50);
@@ -217,7 +217,7 @@ describe("createZipArchive", () => {
     const archive = createZipArchive(
       {
         "COMPANY.md": "# Company\n",
-        "agents/ceo/AGENTS.md": "# CEO\n",
+        "agents/admin/AGENTS.md": "# Admin\n",
         ".bench.yaml": "schema: bench/v1\n",
       },
       "bench-demo",
@@ -227,7 +227,7 @@ describe("createZipArchive", () => {
       rootPath: "bench-demo",
       files: {
         "COMPANY.md": "# Company\n",
-        "agents/ceo/AGENTS.md": "# CEO\n",
+        "agents/admin/AGENTS.md": "# Admin\n",
         ".bench.yaml": "schema: bench/v1\n",
       },
     });
@@ -261,7 +261,7 @@ describe("createZipArchive", () => {
     const archive = createDeflatedZipArchive(
       {
         "COMPANY.md": "# Company\n",
-        "agents/ceo/AGENTS.md": "# CEO\n",
+        "agents/admin/AGENTS.md": "# Admin\n",
       },
       "bench-demo",
     );
@@ -270,7 +270,7 @@ describe("createZipArchive", () => {
       rootPath: "bench-demo",
       files: {
         "COMPANY.md": "# Company\n",
-        "agents/ceo/AGENTS.md": "# CEO\n",
+        "agents/admin/AGENTS.md": "# Admin\n",
       },
     });
   });
@@ -282,7 +282,7 @@ describe("createZipArchive", () => {
       rootPath: "bench-demo",
       files: {
         "COMPANY.md": "# Company\n",
-        "agents/ceo/AGENTS.md": "# CEO\n",
+        "agents/admin/AGENTS.md": "# Admin\n",
       },
     });
   });

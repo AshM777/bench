@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AGENT_ROLE_LABELS, acceptInviteSchema, createAgentSchema, updateAgentSchema } from "./index.js";
+import { COWORKER_ROLE_LABELS, acceptInviteSchema, createAgentSchema, updateAgentSchema } from "./index.js";
 
 describe("dynamic adapter type validation schemas", () => {
   it("accepts external adapter types in create/update agent schemas", () => {
@@ -59,6 +59,6 @@ describe("dynamic adapter type validation schemas", () => {
       }).role,
     ).toBe("security");
 
-    expect(AGENT_ROLE_LABELS.security).toBe("Security");
+    expect(COWORKER_ROLE_LABELS.security).toBe("Security");
   });
 });

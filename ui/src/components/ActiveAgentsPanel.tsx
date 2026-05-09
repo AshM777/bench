@@ -34,6 +34,8 @@ interface ActiveAgentsPanelProps {
   emptyMessage?: string;
   queryScope?: string;
   showMoreLink?: boolean;
+  /** When provided (including empty set), only runs whose agent id is in this set are shown. Omit for company-wide runs. */
+  scopedAgentIds?: Set<string>;
 }
 
 export function ActiveAgentsPanel({
@@ -47,13 +49,18 @@ export function ActiveAgentsPanel({
   emptyMessage = "No recent agent runs.",
   queryScope = "dashboard",
   showMoreLink = true,
+  scopedAgentIds,
 }: ActiveAgentsPanelProps) {
   const { data: liveRuns } = useQuery({
     queryKey: [...queryKeys.liveRuns(companyId), queryScope, { minRunCount, fetchLimit }],
     queryFn: () => heartbeatsApi.liveRunsForCompany(companyId, { minCount: minRunCount, limit: fetchLimit }),
   });
 
-  const runs = liveRuns ?? [];
+  const runsAll = liveRuns ?? [];
+  const runs = useMemo(() => {
+    if (scopedAgentIds === undefined) return runsAll;
+    return runsAll.filter((r) => scopedAgentIds.has(r.agentId));
+  }, [runsAll, scopedAgentIds]);
   const visibleRuns = useMemo(() => runs.slice(0, cardLimit), [cardLimit, runs]);
   const hiddenRunCount = Math.max(0, runs.length - visibleRuns.length);
   const { data: issues } = useQuery({

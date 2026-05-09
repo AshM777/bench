@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { ActivityEvent, Agent } from "@bench/shared";
+import { activityTouchesScopedAgents } from "../lib/manager-scope";
 import { activityApi } from "../api/activity";
 import { accessApi } from "../api/access";
 import { agentsApi } from "../api/agents";
@@ -19,8 +20,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { History } from "lucide-react";
+import { useDashboardAgentScope, useDashboardPersona } from "../context/DashboardPersonaContext";
 
 const ACTIVITY_PAGE_LIMIT = 200;
+const ACTIVITY_PAGE_LIMIT_MANAGER = 400;
 
 function detailString(event: ActivityEvent, ...keys: string[]) {
   const details = event.details;
@@ -47,14 +50,16 @@ export function Activity() {
   const { selectedCompanyId } = useCompany();
   const { setBreadcrumbs } = useBreadcrumbs();
   const [filter, setFilter] = useState("all");
+  const { persona } = useDashboardPersona();
+  const activityLimit = persona === "manager" ? ACTIVITY_PAGE_LIMIT_MANAGER : ACTIVITY_PAGE_LIMIT;
 
   useEffect(() => {
     setBreadcrumbs([{ label: "Activity" }]);
   }, [setBreadcrumbs]);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: [...queryKeys.activity(selectedCompanyId!), { limit: ACTIVITY_PAGE_LIMIT }],
-    queryFn: () => activityApi.list(selectedCompanyId!, { limit: ACTIVITY_PAGE_LIMIT }),
+    queryKey: [...queryKeys.activity(selectedCompanyId!), { limit: activityLimit }],
+    queryFn: () => activityApi.list(selectedCompanyId!, { limit: activityLimit }),
     enabled: !!selectedCompanyId,
   });
 
@@ -63,6 +68,8 @@ export function Activity() {
     queryFn: () => agentsApi.list(selectedCompanyId!),
     enabled: !!selectedCompanyId,
   });
+
+  const scope = useDashboardAgentScope(agents);
 
   const { data: companyMembers } = useQuery({
     queryKey: queryKeys.access.companyUserDirectory(selectedCompanyId!),
@@ -100,6 +107,12 @@ export function Activity() {
     return map;
   }, [data]);
 
+  const scopedRows = useMemo(() => {
+    if (!data) return [];
+    if (!scope.isManagerView || !scope.scopedAgentIds) return data;
+    return data.filter((e) => activityTouchesScopedAgents(e, scope.scopedAgentIds!));
+  }, [data, scope.isManagerView, scope.scopedAgentIds]);
+
   if (!selectedCompanyId) {
     return <EmptyState icon={History} message="Select a company to view activity." />;
   }
@@ -109,16 +122,23 @@ export function Activity() {
   }
 
   const filtered =
-    data && filter !== "all"
-      ? data.filter((e) => e.entityType === filter)
-      : data;
+    scopedRows && filter !== "all"
+      ? scopedRows.filter((e) => e.entityType === filter)
+      : scopedRows;
 
-  const entityTypes = data
-    ? [...new Set(data.map((e) => e.entityType))].sort()
+  const entityTypes = scopedRows.length
+    ? [...new Set(scopedRows.map((e) => e.entityType))].sort()
     : [];
 
   return (
     <div className="space-y-4">
+      {scope.isManagerView && (!scope.sessionEmail || scope.scopedAgents.length === 0) ? (
+        <p className="text-sm text-muted-foreground rounded-md border border-border bg-muted/30 px-3 py-2">
+          {!scope.sessionEmail
+            ? "Manager activity needs a signed-in email to match assigned coworkers."
+            : "No coworkers are assigned to you in Manager view yet."}
+        </p>
+      ) : null}
       <div className="flex items-center justify-end">
         <Select value={filter} onValueChange={setFilter}>
           <SelectTrigger className="w-[140px] h-8 text-xs">

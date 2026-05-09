@@ -19,8 +19,16 @@ Before making changes, read in this order:
 
 `doc/SPEC.md` is long-horizon product context.
 `doc/SPEC-implementation.md` is the concrete V1 build contract.
+`doc/vision.md` is the Bench product vision and dashboard roadmap brief (May 2026); engineering sequencing lives in `doc/plans/2026-05-10-vision-dashboard-roadmap.md`. Related product references: `doc/persona.md` (human personas), `doc/coworkers.md` (coworker = agent alignment), `doc/connectors-directory.md` (connector catalog companion); canonical connector rows live in `@bench/shared` (`CONNECTOR_CATALOG`).
 
 ## 3. Repo Map
+
+This repository is **`get-bench/bench`** (self-hosted product only). Related org repos:
+
+- **`get-bench/bench-landing`**: marketing / static landing site (separate clone).
+- **`get-bench/bench-macos`**: macOS Electron app + DMG packaging (separate clone; builds against a **`bench`** checkout).
+
+See `doc/plans/2026-05-10-three-repo-split.md`.
 
 - `server/`: Express REST API and orchestration services
 - `ui/`: React + Vite board UI

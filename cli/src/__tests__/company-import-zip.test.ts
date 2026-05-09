@@ -23,7 +23,7 @@ describe("resolveInlineSourceFromPath", () => {
       {
         "COMPANY.md": "# Company\n",
         ".bench.yaml": "schema: bench/v1\n",
-        "agents/ceo/AGENT.md": "# CEO\n",
+        "agents/admin/AGENT.md": "# Admin\n",
         "notes/todo.txt": "ignore me\n",
       },
       "bench-demo",
@@ -37,7 +37,7 @@ describe("resolveInlineSourceFromPath", () => {
       files: {
         "COMPANY.md": "# Company\n",
         ".bench.yaml": "schema: bench/v1\n",
-        "agents/ceo/AGENT.md": "# CEO\n",
+        "agents/admin/AGENT.md": "# Admin\n",
       },
     });
   });

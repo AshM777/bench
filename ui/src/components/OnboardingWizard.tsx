@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AdapterEnvironmentTestResult } from "@bench/shared";
 import { useLocation, useNavigate, useParams } from "@/lib/router";
@@ -30,7 +30,6 @@ import { useDisabledAdaptersSync } from "../adapters/use-disabled-adapters";
 import { useAdapterCapabilities } from "../adapters/use-adapter-capabilities";
 import { getAdapterDisplay } from "../adapters/adapter-display-registry";
 import { defaultCreateValues } from "./agent-config-defaults";
-import { parseOnboardingGoalInput } from "../lib/onboarding-goal";
 import {
   buildOnboardingIssuePayload,
   buildOnboardingProjectPayload,
@@ -45,6 +44,7 @@ import { DEFAULT_CURSOR_LOCAL_MODEL } from "@bench/adapter-cursor-local";
 import { DEFAULT_GEMINI_LOCAL_MODEL } from "@bench/adapter-gemini-local";
 import { resolveRouteOnboardingOptions } from "../lib/onboarding-route";
 import { AsciiArtAnimation } from "./AsciiArtAnimation";
+import type { LucideIcon } from "lucide-react";
 import {
   Building2,
   Bot,
@@ -55,18 +55,311 @@ import {
   Check,
   Loader2,
   ChevronDown,
-  X
+  Upload,
+  X,
+  Package,
+  UserCog,
+  Search,
+  LayoutTemplate,
+  Server,
+  Palette,
+  ClipboardCheck,
+  Shield,
 } from "lucide-react";
+import StackIcon, { type IconName } from "tech-stack-icons";
+import { useTheme } from "../context/ThemeContext";
 
 
-type Step = 1 | 2 | 3 | 4;
+type Step = 1 | 2 | 3;
+type CoworkerPhase = "choose" | "configure";
 type AdapterType = string;
 
-const DEFAULT_TASK_DESCRIPTION = `You are the CEO. You set the direction for the company.
+const DEFAULT_TASK_DESCRIPTION = `You are the Admin. You set the direction for the company.
 
 - hire a founding engineer
 - write a hiring plan
 - break the roadmap into concrete tasks and start delegating work`;
+
+type CoworkerTemplate = {
+  id: string;
+  role: "admin" | "engineer" | "designer" | "pm" | "qa" | "devops" | "researcher" | "general";
+  title: string;
+  defaultName: string;
+  capabilities: string;
+  adapterType: AdapterType;
+  featuredPriceUsd: number;
+  currentPriceUsd: number;
+  launchTaskTitle: string;
+  launchTaskDescription: string;
+  RoleIcon: LucideIcon;
+};
+
+type ToolCategoryId =
+  | "team_chat"
+  | "email_calendar"
+  | "code_hosting"
+  | "meetings"
+  | "work_tracking"
+  | "docs_wiki";
+
+type ToolDirectoryOption = {
+  id: string;
+  label: string;
+  /** `tech-stack-icons` key — null uses generic icon */
+  icon: IconName | null;
+};
+
+type ToolDirectoryCategory = {
+  id: ToolCategoryId;
+  label: string;
+  blurb: string;
+  required: boolean;
+  options: ToolDirectoryOption[];
+};
+
+const TOOL_DIRECTORY: ToolDirectoryCategory[] = [
+  {
+    id: "team_chat",
+    label: "Team chat",
+    blurb: "Where standups, DMs, and quick decisions happen.",
+    required: true,
+    options: [
+      { id: "slack", label: "Slack", icon: "slack" },
+      { id: "teams", label: "Microsoft Teams", icon: "microsoft" },
+      { id: "webex", label: "Webex / Cisco", icon: null },
+      { id: "google_chat", label: "Google Chat", icon: "google" },
+      { id: "mattermost", label: "Mattermost", icon: null },
+      { id: "other_chat", label: "Other", icon: null },
+    ],
+  },
+  {
+    id: "email_calendar",
+    label: "Email & calendar",
+    blurb: "So your coworker can follow threads and schedule like a real teammate.",
+    required: true,
+    options: [
+      { id: "outlook", label: "Outlook / Microsoft 365", icon: "microsoft" },
+      { id: "gmail_workspace", label: "Gmail / Google Workspace", icon: "google" },
+      { id: "icloud", label: "Apple Mail / iCloud", icon: null },
+      { id: "other_mail", label: "Other", icon: null },
+    ],
+  },
+  {
+    id: "code_hosting",
+    label: "Code & repositories",
+    blurb: "Where branches, PRs, and reviews live (separate from task trackers).",
+    required: false,
+    options: [
+      { id: "later_code", label: "Decide later in dashboard", icon: null },
+      { id: "github", label: "GitHub", icon: "github" },
+      { id: "gitlab", label: "GitLab", icon: "gitlab" },
+      { id: "bitbucket", label: "Bitbucket", icon: "bitbucket" },
+      { id: "azure_repos", label: "Azure Repos", icon: "azure" },
+    ],
+  },
+  {
+    id: "meetings",
+    label: "Meetings",
+    blurb: "Where reviews and planning conversations live.",
+    required: false,
+    options: [
+      { id: "later_meetings", label: "Decide later in dashboard", icon: null },
+      { id: "meet", label: "Google Meet", icon: "google" },
+      { id: "zoom", label: "Zoom", icon: null },
+      { id: "teams_meetings", label: "Microsoft Teams", icon: "microsoft" },
+      { id: "webex_meetings", label: "Webex Meetings", icon: null },
+    ],
+  },
+  {
+    id: "work_tracking",
+    label: "Work tracking",
+    blurb: "Tickets and delivery tracking.",
+    required: false,
+    options: [
+      { id: "later_tracking", label: "Decide later in dashboard", icon: null },
+      { id: "jira", label: "Jira", icon: "jira" },
+      { id: "linear", label: "Linear", icon: "linear" },
+      { id: "asana", label: "Asana", icon: "asana" },
+      { id: "azure_devops", label: "Azure DevOps Boards", icon: "azure" },
+      { id: "github_issues", label: "GitHub Issues / Projects", icon: "github" },
+    ],
+  },
+  {
+    id: "docs_wiki",
+    label: "Docs & wiki",
+    blurb: "Specs, PRDs, and internal knowledge.",
+    required: false,
+    options: [
+      { id: "later_docs", label: "Decide later in dashboard", icon: null },
+      { id: "confluence", label: "Confluence", icon: "atlassian" },
+      { id: "notion", label: "Notion", icon: "notion" },
+      { id: "google_docs", label: "Google Docs / Drive", icon: "drive" },
+      { id: "sharepoint", label: "SharePoint", icon: "microsoft" },
+    ],
+  },
+];
+
+/** Shown under the toolchain picker — these are typical post-onboarding connectors */
+const CONNECTORS_COMING_LATER_BLURB =
+  "After launch you can connect more systems your team already uses: Docker / container registries, CI/CD (GitHub Actions, GitLab CI, Jenkins), observability (Datadog, Sentry), secrets vaults, identity (Okta), HR tools, and anything else we add to the connector catalog.";
+
+/** Preset-or-custom picker: custom uses connector-first configure UI */
+const CUSTOM_ROLE_TEMPLATE_ID = "custom-role";
+
+const COWORKER_TEMPLATES: CoworkerTemplate[] = [
+  {
+    id: "company-admin",
+    role: "admin",
+    title: "Admin",
+    defaultName: "Admin",
+    capabilities:
+      "Runs day-to-day operations, routes hiring and budget extension requests to the board, and delegates execution across the team.",
+    adapterType: "claude_local",
+    featuredPriceUsd: 0,
+    currentPriceUsd: 0,
+    launchTaskTitle: "Hire your first engineer and create a hiring plan",
+    launchTaskDescription: DEFAULT_TASK_DESCRIPTION,
+    RoleIcon: Shield,
+  },
+  {
+    id: "frontend-engineer",
+    role: "engineer",
+    title: "Frontend Engineer",
+    defaultName: "Frontend Engineer",
+    capabilities:
+      "Owns React/TypeScript UI development, component architecture, performance optimization, and design-system consistency.",
+    adapterType: "codex_local",
+    featuredPriceUsd: 39,
+    currentPriceUsd: 0,
+    launchTaskTitle: "Ship onboarding stepper UI and wiring",
+    launchTaskDescription:
+      "Implement the onboarding stepper UX end-to-end, connect it to existing APIs, and verify all happy-path and skip-path states.",
+    RoleIcon: LayoutTemplate,
+  },
+  {
+    id: "backend-engineer",
+    role: "engineer",
+    title: "Backend Engineer",
+    defaultName: "Backend Engineer",
+    capabilities:
+      "Builds APIs, service integrations, schema changes, and reliability tooling with production-safe defaults.",
+    adapterType: "claude_local",
+    featuredPriceUsd: 39,
+    currentPriceUsd: 0,
+    launchTaskTitle: "Define company onboarding data model + endpoints",
+    launchTaskDescription:
+      "Add support for website/context intake and connector metadata in onboarding workflows while preserving current contracts.",
+    RoleIcon: Server,
+  },
+  {
+    id: "product-designer",
+    role: "designer",
+    title: "Product Designer",
+    defaultName: "Product Designer",
+    capabilities:
+      "Designs UX flows, interaction specs, and copy; aligns information architecture and visual language.",
+    adapterType: "cursor",
+    featuredPriceUsd: 39,
+    currentPriceUsd: 0,
+    launchTaskTitle: "Design first-run onboarding journey",
+    launchTaskDescription:
+      "Draft a polished onboarding flow with progressive disclosure and conversion-focused copy from company setup through launch.",
+    RoleIcon: Palette,
+  },
+  {
+    id: "qa-automation",
+    role: "qa",
+    title: "QA Automation",
+    defaultName: "QA Automation",
+    capabilities:
+      "Builds regression tests, validates critical paths, and hardens release confidence across UI/API boundaries.",
+    adapterType: "gemini_local",
+    featuredPriceUsd: 39,
+    currentPriceUsd: 0,
+    launchTaskTitle: "Create onboarding regression suite",
+    launchTaskDescription:
+      "Add coverage for onboarding stepper creation flow, skip-task launch, and connector guidance rendering.",
+    RoleIcon: ClipboardCheck,
+  },
+];
+
+function CoworkerRoleIconFrame({
+  selected,
+  children,
+}: {
+  selected: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex shrink-0 items-center justify-center",
+        selected ? "rounded-md bg-muted/60 p-2" : "p-2",
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+function toolDirectorySelectionsComplete(
+  picks: Partial<Record<ToolCategoryId, string>>
+): boolean {
+  return TOOL_DIRECTORY.filter((c) => c.required).every((c) => {
+    const v = picks[c.id];
+    return Boolean(v?.trim());
+  });
+}
+
+function serializeOnboardingToolDirectory(
+  picks: Partial<Record<ToolCategoryId, string>>
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const c of TOOL_DIRECTORY) {
+    const v = picks[c.id];
+    if (v) out[c.id] = v;
+  }
+  return out;
+}
+
+function filterToolDirectoryBySearch(query: string): ToolDirectoryCategory[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return TOOL_DIRECTORY;
+  return TOOL_DIRECTORY.map((cat) => ({
+    ...cat,
+    options: cat.options.filter(
+      (o) =>
+        o.label.toLowerCase().includes(q) ||
+        cat.label.toLowerCase().includes(q) ||
+        cat.blurb.toLowerCase().includes(q),
+    ),
+  })).filter((cat) => cat.options.length > 0);
+}
+
+function ToolBrandIcon({
+  icon,
+  className,
+}: {
+  icon: IconName | null;
+  className?: string;
+}) {
+  const { theme } = useTheme();
+  if (!icon) {
+    return (
+      <Package
+        className={cn("h-4 w-4 shrink-0 text-muted-foreground", className)}
+        aria-hidden
+      />
+    );
+  }
+  return (
+    <StackIcon
+      name={icon}
+      variant={theme === "dark" ? "dark" : "light"}
+      className={cn("h-4 w-4 shrink-0", className)}
+    />
+  );
+}
 
 export function OnboardingWizard() {
   const { onboardingOpen, onboardingOptions, closeOnboarding } = useDialog();
@@ -105,10 +398,32 @@ export function OnboardingWizard() {
 
   // Step 1
   const [companyName, setCompanyName] = useState("");
-  const [companyGoal, setCompanyGoal] = useState("");
+  const [companyDescription, setCompanyDescription] = useState("");
+  const [companyWebsiteUrl, setCompanyWebsiteUrl] = useState("");
+  const [companyLearningAttachmentName, setCompanyLearningAttachmentName] =
+    useState<string | null>(null);
+  const [companyLearningAttachmentText, setCompanyLearningAttachmentText] =
+    useState("");
 
-  // Step 2
-  const [agentName, setAgentName] = useState("CEO");
+  const [coworkerPhase, setCoworkerPhase] = useState<CoworkerPhase>("choose");
+  const [toolPicks, setToolPicks] = useState<
+    Partial<Record<ToolCategoryId, string>>
+  >({
+    code_hosting: "later_code",
+    meetings: "later_meetings",
+    work_tracking: "later_tracking",
+    docs_wiki: "later_docs",
+  });
+  const [connectorSearch, setConnectorSearch] = useState("");
+  const [customRoleTitle, setCustomRoleTitle] = useState("");
+  const [customRoleCapabilities, setCustomRoleCapabilities] = useState("");
+
+  const [selectedTemplateId, setSelectedTemplateId] = useState(
+    COWORKER_TEMPLATES[0]!.id
+  );
+  const [agentName, setAgentName] = useState(
+    COWORKER_TEMPLATES[0]!.defaultName
+  );
   const [adapterType, setAdapterType] = useState<AdapterType>("claude_local");
   const [model, setModel] = useState("");
   const [command, setCommand] = useState("");
@@ -130,6 +445,7 @@ export function OnboardingWizard() {
   const [taskDescription, setTaskDescription] = useState(
     DEFAULT_TASK_DESCRIPTION
   );
+  const [skipInitialTask, setSkipInitialTask] = useState(false);
 
   // Auto-grow textarea for task description
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -171,6 +487,16 @@ export function OnboardingWizard() {
     setCreatedProjectId(null);
     setCreatedAgentId(null);
     setCreatedIssueRef(null);
+    setCoworkerPhase("choose");
+    setToolPicks({
+      code_hosting: "later_code",
+      meetings: "later_meetings",
+      work_tracking: "later_tracking",
+      docs_wiki: "later_docs",
+    });
+    setConnectorSearch("");
+    setCustomRoleTitle("");
+    setCustomRoleCapabilities("");
   }, [
     effectiveOnboardingOpen,
     effectiveOnboardingOptions.companyId,
@@ -199,7 +525,11 @@ export function OnboardingWizard() {
       ? queryKeys.agents.adapterModels(createdCompanyId, adapterType)
       : ["agents", "none", "adapter-models", adapterType],
     queryFn: () => agentsApi.adapterModels(createdCompanyId!, adapterType),
-    enabled: Boolean(createdCompanyId) && effectiveOnboardingOpen && step === 2
+    enabled:
+      Boolean(createdCompanyId) &&
+      effectiveOnboardingOpen &&
+      step === 2 &&
+      coworkerPhase === "configure"
   });
   const getCapabilities = useAdapterCapabilities();
   const adapterCaps = getCapabilities(adapterType);
@@ -241,6 +571,15 @@ export function OnboardingWizard() {
   }, [step, adapterType, model, command, args, url]);
 
   const selectedModel = (adapterModels ?? []).find((m) => m.id === model);
+  const presetTemplate = useMemo(
+    () => COWORKER_TEMPLATES.find((t) => t.id === selectedTemplateId) ?? null,
+    [selectedTemplateId],
+  );
+  const isCustomRole = selectedTemplateId === CUSTOM_ROLE_TEMPLATE_ID;
+  const connectorDirectoryFiltered = useMemo(() => {
+    if (!isCustomRole || coworkerPhase !== "configure") return TOOL_DIRECTORY;
+    return filterToolDirectoryBySearch(connectorSearch);
+  }, [isCustomRole, coworkerPhase, connectorSearch]);
   const hasAnthropicApiKeyOverrideCheck =
     adapterEnvResult?.checks.some(
       (check) =>
@@ -286,14 +625,94 @@ export function OnboardingWizard() {
       }));
   }, [filteredModels, adapterType]);
 
+  useEffect(() => {
+    if (selectedTemplateId === CUSTOM_ROLE_TEMPLATE_ID) {
+      setAgentName("Custom coworker");
+      setAdapterType("claude_local");
+      setModel("");
+      setCustomRoleTitle("");
+      setCustomRoleCapabilities("");
+      setConnectorSearch("");
+      setTaskTitle("Kick off your custom coworker");
+      setTaskDescription(
+        [
+          "Align on scope, connectors, and first deliverables for this role.",
+          "",
+          "- Confirm toolchain selections from onboarding",
+          "- List 2–3 concrete outcomes for the first week",
+        ].join("\n"),
+      );
+      return;
+    }
+    const template = COWORKER_TEMPLATES.find((t) => t.id === selectedTemplateId);
+    if (!template) return;
+    setAgentName(template.defaultName);
+    setAdapterType(template.adapterType);
+    if (template.adapterType === "codex_local") {
+      setModel(DEFAULT_CODEX_LOCAL_MODEL);
+    } else if (template.adapterType === "gemini_local") {
+      setModel(DEFAULT_GEMINI_LOCAL_MODEL);
+    } else if (template.adapterType === "cursor") {
+      setModel(DEFAULT_CURSOR_LOCAL_MODEL);
+    } else {
+      setModel("");
+    }
+    setTaskTitle(template.launchTaskTitle);
+    setTaskDescription(template.launchTaskDescription);
+  }, [selectedTemplateId]);
+
+  const companyLearningContextBlock = useMemo(() => {
+    const lines: string[] = [];
+    const website = companyWebsiteUrl.trim();
+    const attachment = companyLearningAttachmentText.trim();
+    if (website) lines.push(`Website: ${website}`);
+    if (attachment) {
+      const label = companyLearningAttachmentName
+        ? `Attachment (${companyLearningAttachmentName})`
+        : "Attachment";
+      lines.push(`${label}:\n${attachment}`);
+    }
+    if (lines.length === 0) return "";
+    return `\n\n## Company Context\n${lines.join("\n\n")}`;
+  }, [companyWebsiteUrl, companyLearningAttachmentName, companyLearningAttachmentText]);
+
+  const toolDirectorySummaryLines = useMemo(() => {
+    const lines: string[] = [];
+    for (const cat of TOOL_DIRECTORY) {
+      const pick = toolPicks[cat.id];
+      if (!pick) continue;
+      if (String(pick).startsWith("later_")) {
+        lines.push(`${cat.label}: decide in dashboard`);
+        continue;
+      }
+      const label = cat.options.find((o) => o.id === pick)?.label ?? pick;
+      lines.push(`${cat.label}: ${label}`);
+    }
+    return lines;
+  }, [toolPicks]);
+
   function reset() {
     setStep(1);
     setLoading(false);
     setError(null);
     setCompanyName("");
-    setCompanyGoal("");
-    setAgentName("CEO");
-    setAdapterType("claude_local");
+    setCompanyDescription("");
+    setCompanyWebsiteUrl("");
+    setCompanyLearningAttachmentName(null);
+    setCompanyLearningAttachmentText("");
+    setCoworkerPhase("choose");
+    setToolPicks({
+      code_hosting: "later_code",
+      meetings: "later_meetings",
+      work_tracking: "later_tracking",
+      docs_wiki: "later_docs",
+    });
+    setConnectorSearch("");
+    setCustomRoleTitle("");
+    setCustomRoleCapabilities("");
+    setSelectedTemplateId(COWORKER_TEMPLATES[0]!.id);
+    setAgentName(COWORKER_TEMPLATES[0]!.defaultName);
+    setAdapterType(COWORKER_TEMPLATES[0]!.adapterType);
     setModel("");
     setCommand("");
     setArgs("");
@@ -305,6 +724,7 @@ export function OnboardingWizard() {
     setUnsetAnthropicLoading(false);
     setTaskTitle("Hire your first engineer and create a hiring plan");
     setTaskDescription(DEFAULT_TASK_DESCRIPTION);
+    setSkipInitialTask(false);
     setCreatedCompanyId(null);
     setCreatedCompanyPrefix(null);
     setCreatedCompanyGoalId(null);
@@ -385,34 +805,45 @@ export function OnboardingWizard() {
     }
   }
 
+  async function handleCompanyLearningAttachment(
+    e: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCompanyLearningAttachmentName(file.name);
+    try {
+      const text = await file.text();
+      const normalized = text.trim().slice(0, 12_000);
+      setCompanyLearningAttachmentText(normalized);
+    } catch {
+      setCompanyLearningAttachmentText("");
+      setError("Couldn't read that attachment. Try a text-based file.");
+    }
+  }
+
   async function handleStep1Next() {
     setLoading(true);
     setError(null);
     try {
-      const company = await companiesApi.create({ name: companyName.trim() });
+      const trimmedDescription = companyDescription.trim();
+      const trimmedWebsite = companyWebsiteUrl.trim();
+      const composedDescription = [
+        trimmedDescription,
+        trimmedWebsite ? `Website: ${trimmedWebsite}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n\n")
+        .trim();
+      const company = await companiesApi.create({
+        name: companyName.trim(),
+        description: composedDescription || null,
+      });
       setCreatedCompanyId(company.id);
       setCreatedCompanyPrefix(company.issuePrefix);
       setSelectedCompanyId(company.id);
       queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
-
-      if (companyGoal.trim()) {
-        const parsedGoal = parseOnboardingGoalInput(companyGoal);
-        const goal = await goalsApi.create(company.id, {
-          title: parsedGoal.title,
-          ...(parsedGoal.description
-            ? { description: parsedGoal.description }
-            : {}),
-          level: "company",
-          status: "active"
-        });
-        setCreatedCompanyGoalId(goal.id);
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.goals.list(company.id)
-        });
-      } else {
-        setCreatedCompanyGoalId(null);
-      }
-
+      setCreatedCompanyGoalId(null);
+      setCoworkerPhase("choose");
       setStep(2);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create company");
@@ -422,10 +853,18 @@ export function OnboardingWizard() {
   }
 
   async function handleStep2Next() {
-    if (!createdCompanyId) return;
+    if (!createdCompanyId || coworkerPhase !== "configure") return;
     setLoading(true);
     setError(null);
     try {
+      if (!toolDirectorySelectionsComplete(toolPicks)) {
+        setError(
+          "Choose team chat and email tools so we know which ecosystem to connect later."
+        );
+        setLoading(false);
+        return;
+      }
+
       if (adapterType === "opencode_local") {
         const selectedModelId = model.trim();
         if (!selectedModelId) {
@@ -464,12 +903,47 @@ export function OnboardingWizard() {
         if (!result) return;
       }
 
+      if (isCustomRole) {
+        if (!customRoleTitle.trim()) {
+          setError("Add a role title for your custom coworker (e.g. Growth Engineer).");
+          setLoading(false);
+          return;
+        }
+      } else if (!presetTemplate) {
+        setError("Choose a valid coworker template.");
+        setLoading(false);
+        return;
+      }
+
+      const hireRole = isCustomRole ? "general" : presetTemplate!.role;
+      const hireTitle = isCustomRole
+        ? customRoleTitle.trim()
+        : presetTemplate!.title;
+      const hireCapabilities = isCustomRole
+        ? customRoleCapabilities.trim() ||
+          "Custom coworker; refine responsibilities after launch."
+        : presetTemplate!.capabilities;
+
       const hire = await agentsApi.hire(createdCompanyId, {
         name: agentName.trim(),
-        role: "ceo",
+        role: hireRole,
+        title: hireTitle,
+        capabilities: hireCapabilities,
         adapterType,
         adapterConfig: buildAdapterConfig(),
-        runtimeConfig: buildNewAgentRuntimeConfig()
+        runtimeConfig: buildNewAgentRuntimeConfig(),
+        metadata: {
+          onboardingTemplateId: isCustomRole
+            ? CUSTOM_ROLE_TEMPLATE_ID
+            : presetTemplate!.id,
+          onboardingCustomRole: isCustomRole,
+          ...(isCustomRole && customRoleTitle.trim()
+            ? { onboardingCustomRoleTitle: customRoleTitle.trim() }
+            : {}),
+          onboardingToolDirectory: serializeOnboardingToolDirectory(toolPicks),
+          onboardingToolDirectoryNote:
+            "Selections are saved for your workspace; OAuth and API connections happen from the dashboard.",
+        },
       });
       if (hire.approval) {
         await approvalsApi.approve(
@@ -542,12 +1016,6 @@ export function OnboardingWizard() {
     }
   }
 
-  async function handleStep3Next() {
-    if (!createdCompanyId || !createdAgentId) return;
-    setError(null);
-    setStep(4);
-  }
-
   async function handleLaunch() {
     if (!createdCompanyId || !createdAgentId) return;
     setLoading(true);
@@ -574,12 +1042,13 @@ export function OnboardingWizard() {
       }
 
       let issueRef = createdIssueRef;
-      if (!issueRef) {
+      if (!skipInitialTask && !issueRef) {
+        const finalTaskDescription = `${taskDescription}${companyLearningContextBlock}`.trim();
         const issue = await issuesApi.create(
           createdCompanyId,
           buildOnboardingIssuePayload({
             title: taskTitle,
-            description: taskDescription,
+            description: finalTaskDescription,
             assigneeAgentId: createdAgentId,
             projectId,
             goalId
@@ -597,8 +1066,12 @@ export function OnboardingWizard() {
       closeOnboarding();
       navigate(
         createdCompanyPrefix
-          ? `/${createdCompanyPrefix}/issues/${issueRef}`
-          : `/issues/${issueRef}`
+          ? issueRef
+            ? `/${createdCompanyPrefix}/issues/${issueRef}`
+            : `/${createdCompanyPrefix}/dashboard`
+          : issueRef
+            ? `/issues/${issueRef}`
+            : "/"
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create task");
@@ -610,10 +1083,24 @@ export function OnboardingWizard() {
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
-      if (step === 1 && companyName.trim()) handleStep1Next();
-      else if (step === 2 && agentName.trim()) handleStep2Next();
-      else if (step === 3 && taskTitle.trim()) handleStep3Next();
-      else if (step === 4) handleLaunch();
+      if (step === 1 && companyName.trim()) void handleStep1Next();
+      else if (step === 2 && coworkerPhase === "choose")
+        setCoworkerPhase("configure");
+      else if (
+        step === 2 &&
+        coworkerPhase === "configure" &&
+        agentName.trim() &&
+        (!isCustomRole || customRoleTitle.trim()) &&
+        toolDirectorySelectionsComplete(toolPicks)
+      )
+        void handleStep2Next();
+      else if (
+        step === 3 &&
+        createdCompanyId &&
+        createdAgentId &&
+        (skipInitialTask || taskTitle.trim())
+      )
+        void handleLaunch();
     }
   }
 
@@ -651,15 +1138,19 @@ export function OnboardingWizard() {
               step === 1 ? "md:w-1/2" : "md:w-full"
             )}
           >
-            <div className="w-full max-w-md mx-auto my-auto px-8 py-12 shrink-0">
+            <div
+              className={cn(
+                "w-full mx-auto my-auto px-8 py-12 shrink-0 transition-[max-width] duration-200",
+                step === 2 || step === 3 ? "max-w-xl" : "max-w-md"
+              )}
+            >
               {/* Progress tabs */}
               <div className="flex items-center gap-0 mb-8 border-b border-border">
                 {(
                   [
                     { step: 1 as Step, label: "Company", icon: Building2 },
-                    { step: 2 as Step, label: "Agent", icon: Bot },
-                    { step: 3 as Step, label: "Task", icon: ListTodo },
-                    { step: 4 as Step, label: "Launch", icon: Rocket }
+                    { step: 2 as Step, label: "Coworker", icon: Bot },
+                    { step: 3 as Step, label: "Launch", icon: Rocket },
                   ] as const
                 ).map(({ step: s, label, icon: Icon }) => (
                   <button
@@ -716,48 +1207,338 @@ export function OnboardingWizard() {
                     <label
                       className={cn(
                         "text-xs mb-1 block transition-colors",
-                        companyGoal.trim()
+                        companyDescription.trim()
                           ? "text-foreground"
                           : "text-muted-foreground group-focus-within:text-foreground"
                       )}
                     >
-                      Mission / goal (optional)
+                      Description (optional)
                     </label>
                     <textarea
                       className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50 resize-none min-h-[60px]"
-                      placeholder="What is this company trying to achieve?"
-                      value={companyGoal}
-                      onChange={(e) => setCompanyGoal(e.target.value)}
+                      placeholder="What does this company do?"
+                      value={companyDescription}
+                      onChange={(e) => setCompanyDescription(e.target.value)}
                     />
+                  </div>
+                  <div className="group">
+                    <label
+                      className={cn(
+                        "text-xs mb-1 block transition-colors",
+                        companyWebsiteUrl.trim()
+                          ? "text-foreground"
+                          : "text-muted-foreground group-focus-within:text-foreground"
+                      )}
+                    >
+                      Website URL (optional)
+                    </label>
+                    <input
+                      className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
+                      placeholder="https://example.com"
+                      value={companyWebsiteUrl}
+                      onChange={(e) => setCompanyWebsiteUrl(e.target.value)}
+                    />
+                  </div>
+                  <div className="group space-y-2">
+                    <label className="text-xs text-muted-foreground block">
+                      Attachment to learn from (optional)
+                    </label>
+                    <label className="flex items-center justify-center gap-2 rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:border-foreground/30 cursor-pointer transition-colors">
+                      <Upload className="h-3.5 w-3.5" />
+                      <span>
+                        {companyLearningAttachmentName
+                          ? `Attached: ${companyLearningAttachmentName}`
+                          : "Upload text/markdown/json file"}
+                      </span>
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept=".txt,.md,.markdown,.json,.csv,.yaml,.yml"
+                        onChange={handleCompanyLearningAttachment}
+                      />
+                    </label>
                   </div>
                 </div>
               )}
 
-              {step === 2 && (
+              {step === 2 && coworkerPhase === "choose" && (
                 <div className="space-y-5">
                   <div className="flex items-center gap-3 mb-1">
                     <div className="bg-muted/50 p-2">
                       <Bot className="h-5 w-5 text-muted-foreground" />
                     </div>
                     <div>
-                      <h3 className="font-medium">Create your first agent</h3>
-                      <p className="text-xs text-muted-foreground">
-                        Choose how this agent will run tasks.
+                      <h3 className="font-medium">Choose a coworker</h3>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Real teammates live across chat, email, tickets, docs, and your coding tools.
+                        Start by picking who you are hiring—next you will map the apps your company uses (saved now; integrations connect from the dashboard).
                       </p>
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs text-muted-foreground mb-1 block">
-                      Agent name
+                    <label className="text-xs text-muted-foreground mb-2 block">
+                      Roles
                     </label>
-                    <input
-                      className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
-                      placeholder="CEO"
-                      value={agentName}
-                      onChange={(e) => setAgentName(e.target.value)}
-                      autoFocus
-                    />
+                    <div className="grid grid-cols-1 gap-2">
+                      {COWORKER_TEMPLATES.map((template) => {
+                        const selected = selectedTemplateId === template.id;
+                        const Icon = template.RoleIcon;
+                        return (
+                          <button
+                            key={template.id}
+                            type="button"
+                            className={cn(
+                              "rounded-md border p-3 text-left transition-colors",
+                              selected
+                                ? "border-foreground bg-accent"
+                                : "border-border hover:bg-accent/50",
+                            )}
+                            onClick={() => setSelectedTemplateId(template.id)}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex min-w-0 gap-3">
+                                <CoworkerRoleIconFrame selected={selected}>
+                                  <Icon
+                                    className="h-5 w-5 text-muted-foreground"
+                                    aria-hidden
+                                  />
+                                </CoworkerRoleIconFrame>
+                                <div className="min-w-0">
+                                  <p className="text-sm font-medium">{template.title}</p>
+                                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                                    {template.capabilities}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <p className="text-[11px] text-muted-foreground line-through">
+                                  ${template.featuredPriceUsd}.00/mo
+                                </p>
+                                <p className="text-sm font-semibold">
+                                  ${template.currentPriceUsd}.00
+                                </p>
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                      <button
+                        type="button"
+                        className={cn(
+                          "rounded-md border p-3 text-left transition-colors",
+                          selectedTemplateId === CUSTOM_ROLE_TEMPLATE_ID
+                            ? "border-foreground bg-accent"
+                            : "border-border hover:bg-accent/50",
+                        )}
+                        onClick={() => setSelectedTemplateId(CUSTOM_ROLE_TEMPLATE_ID)}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex min-w-0 gap-3">
+                            <CoworkerRoleIconFrame
+                              selected={
+                                selectedTemplateId === CUSTOM_ROLE_TEMPLATE_ID
+                              }
+                            >
+                              <UserCog
+                                className="h-5 w-5 text-muted-foreground"
+                                aria-hidden
+                              />
+                            </CoworkerRoleIconFrame>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium">Custom role</p>
+                              <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                                Define your own title and responsibilities. Next step opens the full connector directory first so you can match how your team actually works.
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-[11px] text-muted-foreground line-through">
+                              $39.00/mo
+                            </p>
+                            <p className="text-sm font-semibold">$0.00</p>
+                          </div>
+                        </div>
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-2">
+                      Early access: coworker seats are free. Connectors are selected next; OAuth happens after launch.
+                    </p>
                   </div>
+                </div>
+              )}
+
+              {step === 2 && coworkerPhase === "configure" && (
+                <div className="space-y-5">
+                  <div className="flex items-start gap-3 mb-1">
+                    <button
+                      type="button"
+                      className="mt-1 text-[11px] text-muted-foreground hover:text-foreground"
+                      onClick={() => setCoworkerPhase("choose")}
+                    >
+                      ← Change role
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-3 mb-1">
+                    <div className="bg-muted/50 p-2">
+                      <Bot className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium">
+                        {isCustomRole
+                          ? "Custom role: connector directory"
+                          : `Set up ${presetTemplate?.title ?? "coworker"}`}
+                      </h3>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        {isCustomRole ? (
+                          <>
+                            Start from the connector directory below—search across apps your company uses.
+                            Selections are saved now; OAuth and API tokens are wired up after launch.
+                            Then name the coworker and describe the role. The coding runtime is the adapter at the bottom.
+                          </>
+                        ) : (
+                          <>
+                            Map the apps this role will use day to day. We only record your choices here—like a real rollout, email/chat are required; other tools can be deferred.
+                            The coding environment is the agent adapter below (CLI / IDE bridge).
+                          </>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  {!isCustomRole && presetTemplate ? (
+                    <div>
+                      <label className="text-xs text-muted-foreground mb-1 block">
+                        Coworker name
+                      </label>
+                      <input
+                        className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
+                        placeholder={presetTemplate.defaultName}
+                        value={agentName}
+                        onChange={(e) => setAgentName(e.target.value)}
+                        autoFocus
+                      />
+                    </div>
+                  ) : null}
+
+                  <div className="rounded-md border border-border p-3 space-y-3">
+                    <div className="flex flex-col gap-0.5">
+                      <p className="text-xs font-medium">
+                        {isCustomRole ? "Connector directory" : "Your team's toolchain"}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        {isCustomRole
+                          ? "Browse or search by name. Pick one option per category—same catalog presets use, shown here first for custom roles."
+                          : "Pick one option per category. Optional rows default to \"decide later\" so onboarding stays lightweight."}
+                      </p>
+                    </div>
+                    {isCustomRole ? (
+                      <div className="relative">
+                        <Search
+                          className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
+                          aria-hidden
+                        />
+                        <input
+                          className="w-full rounded-md border border-border bg-transparent py-2 pl-8 pr-3 text-sm outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
+                          placeholder="Search connectors (e.g. Slack, Jira, GitHub)…"
+                          value={connectorSearch}
+                          onChange={(e) => setConnectorSearch(e.target.value)}
+                          autoFocus={isCustomRole}
+                        />
+                      </div>
+                    ) : null}
+                    {isCustomRole &&
+                    connectorDirectoryFiltered.length === 0 &&
+                    connectorSearch.trim() ? (
+                      <p className="text-[11px] text-muted-foreground">
+                        No connectors match &quot;{connectorSearch.trim()}&quot;. Try another keyword or clear search to see the full directory.
+                      </p>
+                    ) : null}
+                    <div className="space-y-4">
+                      {connectorDirectoryFiltered.map((cat) => (
+                        <div key={cat.id} className="space-y-1.5">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <span className="text-xs font-medium">{cat.label}</span>
+                              {cat.required ? (
+                                <span className="text-[10px] text-muted-foreground ml-1.5">
+                                  (required)
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground">{cat.blurb}</p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                            {cat.options.map((opt) => {
+                              const picked = toolPicks[cat.id] === opt.id;
+                              return (
+                                <button
+                                  key={opt.id}
+                                  type="button"
+                                  className={cn(
+                                    "flex items-center gap-2 rounded-md border px-2.5 py-2 text-left text-xs transition-colors",
+                                    picked
+                                      ? "border-foreground bg-accent"
+                                      : "border-border hover:bg-accent/40"
+                                  )}
+                                  onClick={() =>
+                                    setToolPicks((prev) => ({
+                                      ...prev,
+                                      [cat.id]: opt.id,
+                                    }))
+                                  }
+                                >
+                                  <ToolBrandIcon icon={opt.icon} />
+                                  <span className="leading-snug">{opt.label}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed border-t border-border pt-3 mt-1">
+                      {CONNECTORS_COMING_LATER_BLURB}
+                    </p>
+                  </div>
+
+                  {isCustomRole ? (
+                    <div className="space-y-4 rounded-md border border-border p-3">
+                      <p className="text-xs font-medium">Coworker profile</p>
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">
+                          Display name
+                        </label>
+                        <input
+                          className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
+                          placeholder="Custom coworker"
+                          value={agentName}
+                          onChange={(e) => setAgentName(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">
+                          Role title <span className="text-destructive">*</span>
+                        </label>
+                        <input
+                          className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
+                          placeholder="e.g. Partner Engineer, RevOps Analyst"
+                          value={customRoleTitle}
+                          onChange={(e) => setCustomRoleTitle(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">
+                          Responsibilities (optional)
+                        </label>
+                        <textarea
+                          className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50 resize-none min-h-[88px]"
+                          placeholder="What they own day to day—products, stakeholders, and outcomes."
+                          value={customRoleCapabilities}
+                          onChange={(e) => setCustomRoleCapabilities(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  ) : null}
 
                   {/* Adapter type radio cards */}
                   <div>
@@ -1007,7 +1788,7 @@ export function OnboardingWizard() {
                           <p className="text-[11px] text-amber-900/90 leading-relaxed">
                             Claude failed while{" "}
                             <span className="font-mono">ANTHROPIC_API_KEY</span>{" "}
-                            is set. You can clear it in this CEO adapter config
+                            is set. You can clear it in this Admin adapter config
                             and retry the probe.
                           </p>
                           <Button
@@ -1105,60 +1886,65 @@ export function OnboardingWizard() {
               )}
 
               {step === 3 && (
-                <div className="space-y-5">
-                  <div className="flex items-center gap-3 mb-1">
-                    <div className="bg-muted/50 p-2">
-                      <ListTodo className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium">Give it something to do</h3>
-                      <p className="text-xs text-muted-foreground">
-                        Give your agent a small task to start with — a bug fix,
-                        a research question, writing a script.
-                      </p>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground mb-1 block">
-                      Task title
-                    </label>
-                    <input
-                      className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
-                      placeholder="e.g. Research competitor pricing"
-                      value={taskTitle}
-                      onChange={(e) => setTaskTitle(e.target.value)}
-                      autoFocus
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground mb-1 block">
-                      Description (optional)
-                    </label>
-                    <textarea
-                      ref={textareaRef}
-                      className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50 resize-none min-h-[120px] max-h-[300px] overflow-y-auto"
-                      placeholder="Add more detail about what the agent should do..."
-                      value={taskDescription}
-                      onChange={(e) => setTaskDescription(e.target.value)}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {step === 4 && (
-                <div className="space-y-5">
+                <div className="space-y-6">
                   <div className="flex items-center gap-3 mb-1">
                     <div className="bg-muted/50 p-2">
                       <Rocket className="h-5 w-5 text-muted-foreground" />
                     </div>
                     <div>
-                      <h3 className="font-medium">Ready to launch</h3>
-                      <p className="text-xs text-muted-foreground">
-                        Everything is set up. Launching now will create the
-                        starter task, wake the agent, and open the issue.
+                      <h3 className="font-medium">Launch workspace</h3>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Optionally assign a starter task, review what we captured, then open your board.
+                        Launch wakes your coworker and{" "}
+                        {skipInitialTask
+                          ? "opens your dashboard."
+                          : "creates the starter task."}
                       </p>
                     </div>
                   </div>
+
+                  <div className="rounded-md border border-border p-3 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <ListTodo className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <p className="text-xs font-medium">Starter task (optional)</p>
+                    </div>
+                    <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        className="h-3.5 w-3.5 rounded border-border bg-transparent"
+                        checked={skipInitialTask}
+                        onChange={(e) => setSkipInitialTask(e.target.checked)}
+                      />
+                      Skip task for now
+                    </label>
+                    <div>
+                      <label className="text-xs text-muted-foreground mb-1 block">
+                        Task title
+                      </label>
+                      <input
+                        className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
+                        placeholder="e.g. Research competitor pricing"
+                        value={taskTitle}
+                        onChange={(e) => setTaskTitle(e.target.value)}
+                        autoFocus
+                        disabled={skipInitialTask}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground mb-1 block">
+                        Description (optional)
+                      </label>
+                      <textarea
+                        ref={textareaRef}
+                        className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50 resize-none min-h-[100px] max-h-[260px] overflow-y-auto"
+                        placeholder="Add more detail about what the agent should do..."
+                        value={taskDescription}
+                        onChange={(e) => setTaskDescription(e.target.value)}
+                        disabled={skipInitialTask}
+                      />
+                    </div>
+                  </div>
+
                   <div className="border border-border divide-y divide-border">
                     <div className="flex items-center gap-3 px-3 py-2.5">
                       <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -1182,13 +1968,27 @@ export function OnboardingWizard() {
                       </div>
                       <Check className="h-4 w-4 text-green-500 shrink-0" />
                     </div>
+                    {toolDirectorySummaryLines.length > 0 && (
+                      <div className="px-3 py-2.5 border-t border-border">
+                        <p className="text-xs font-medium text-foreground mb-1">
+                          Toolchain (saved selections)
+                        </p>
+                        <ul className="text-[11px] text-muted-foreground space-y-0.5 list-disc pl-4">
+                          {toolDirectorySummaryLines.map((line) => (
+                            <li key={line}>{line}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                     <div className="flex items-center gap-3 px-3 py-2.5">
                       <ListTodo className="h-4 w-4 text-muted-foreground shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">
-                          {taskTitle}
+                          {skipInitialTask ? "No starter task (skipped)" : taskTitle}
                         </p>
-                        <p className="text-xs text-muted-foreground">Task</p>
+                        <p className="text-xs text-muted-foreground">
+                          {skipInitialTask ? "Task setup skipped" : "Task"}
+                        </p>
                       </div>
                       <Check className="h-4 w-4 text-green-500 shrink-0" />
                     </div>
@@ -1210,7 +2010,13 @@ export function OnboardingWizard() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => setStep((step - 1) as Step)}
+                      onClick={() => {
+                        if (step === 2 && coworkerPhase === "configure") {
+                          setCoworkerPhase("choose");
+                          return;
+                        }
+                        setStep((step - 1) as Step);
+                      }}
                       disabled={loading}
                     >
                       <ArrowLeft className="h-3.5 w-3.5 mr-1" />
@@ -1233,13 +2039,27 @@ export function OnboardingWizard() {
                       {loading ? "Creating..." : "Next"}
                     </Button>
                   )}
-                  {step === 2 && (
+                  {step === 2 && coworkerPhase === "choose" && (
+                    <Button
+                      size="sm"
+                      disabled={loading}
+                      onClick={() => setCoworkerPhase("configure")}
+                    >
+                      <ArrowRight className="h-3.5 w-3.5 mr-1" />
+                      Continue
+                    </Button>
+                  )}
+                  {step === 2 && coworkerPhase === "configure" && (
                     <Button
                       size="sm"
                       disabled={
-                        !agentName.trim() || loading || adapterEnvLoading
+                        !agentName.trim() ||
+                        (isCustomRole && !customRoleTitle.trim()) ||
+                        !toolDirectorySelectionsComplete(toolPicks) ||
+                        loading ||
+                        adapterEnvLoading
                       }
-                      onClick={handleStep2Next}
+                      onClick={() => void handleStep2Next()}
                     >
                       {loading ? (
                         <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
@@ -1252,25 +2072,23 @@ export function OnboardingWizard() {
                   {step === 3 && (
                     <Button
                       size="sm"
-                      disabled={!taskTitle.trim() || loading}
-                      onClick={handleStep3Next}
+                      disabled={
+                        (!skipInitialTask && !taskTitle.trim()) ||
+                        loading ||
+                        !createdAgentId
+                      }
+                      onClick={() => void handleLaunch()}
                     >
                       {loading ? (
                         <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
                       ) : (
                         <ArrowRight className="h-3.5 w-3.5 mr-1" />
                       )}
-                      {loading ? "Creating..." : "Next"}
-                    </Button>
-                  )}
-                  {step === 4 && (
-                    <Button size="sm" disabled={loading} onClick={handleLaunch}>
-                      {loading ? (
-                        <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-                      ) : (
-                        <ArrowRight className="h-3.5 w-3.5 mr-1" />
-                      )}
-                      {loading ? "Creating..." : "Create & Open Issue"}
+                      {loading
+                        ? "Launching..."
+                        : skipInitialTask
+                          ? "Launch Workspace"
+                          : "Create Task & Launch"}
                     </Button>
                   )}
                 </div>

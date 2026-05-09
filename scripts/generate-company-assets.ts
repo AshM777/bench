@@ -96,11 +96,12 @@ function parseFrontmatter(content: string): { data: Record<string, unknown>; bod
 // ── Slug to role mapping ─────────────────────────────────────────
 
 const SLUG_TO_ROLE: Record<string, string> = {
-  ceo: "ceo",
-  cto: "cto",
-  cmo: "cmo",
-  cfo: "cfo",
+  admin: "admin",
+  ceo: "admin",
   coo: "coo",
+  cto: "general",
+  cmo: "general",
+  cfo: "general",
 };
 
 function inferRole(slug: string, title: string | null): string {
@@ -109,10 +110,10 @@ function inferRole(slug: string, title: string | null): string {
 
   // Check title for C-suite
   const t = (title || "").toLowerCase();
-  if (t.includes("chief executive")) return "ceo";
-  if (t.includes("chief technology")) return "cto";
-  if (t.includes("chief marketing")) return "cmo";
-  if (t.includes("chief financial")) return "cfo";
+  if (t.includes("chief executive")) return "admin";
+  if (t.includes("chief technology")) return "general";
+  if (t.includes("chief marketing")) return "general";
+  if (t.includes("chief financial")) return "general";
   if (t.includes("chief operating")) return "coo";
   if (t.includes("vp") || t.includes("vice president")) return "vp";
   if (t.includes("manager")) return "manager";
@@ -240,10 +241,8 @@ function parseCompanyPackage(companyDir: string): CompanyPackage | null {
 // ── Build OrgNode tree from agents ───────────────────────────────
 
 const ROLE_LABELS: Record<string, string> = {
-  ceo: "Chief Executive",
-  cto: "Technology",
-  cmo: "Marketing",
-  cfo: "Finance",
+  admin: "Administrator",
+  general: "General",
   coo: "Operations",
   vp: "VP",
   manager: "Manager",

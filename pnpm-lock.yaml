@@ -358,7 +358,7 @@ importers:
         specifier: ^0.27.7
         version: 0.27.7
       rollup:
-        specifier: ^4.60.3
+        specifier: '>=4.59.0'
         version: 4.60.3
       tslib:
         specifier: ^2.8.1
@@ -750,6 +750,9 @@ importers:
       tailwind-merge:
         specifier: ^3.5.0
         version: 3.5.0
+      tech-stack-icons:
+        specifier: ^3.7.1
+        version: 3.7.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
     devDependencies:
       '@storybook/addon-a11y':
         specifier: 10.3.5
@@ -6251,6 +6254,12 @@ packages:
 
   tar-stream@3.2.0:
     resolution: {integrity: sha512-ojzvCvVaNp6aOTFmG7jaRD0meowIAuPc3cMMhSgKiVWws1GyHbGd/xvnyuRKcKlMpt3qvxx6r0hreCNITP9hIg==}
+
+  tech-stack-icons@3.7.1:
+    resolution: {integrity: sha512-5BAWrYxK75zFVVS2ZQZCttQn0EW5dw8CtvMLYYYHIV1Mqhiog8pxWZtUF8uxXHp3b7l9g+YTkTyv6jQUzrCTMA==}
+    peerDependencies:
+      react: ^18.2.0 || ^19.0.0
+      react-dom: ^18.2.0 || ^19.0.0
 
   teex@1.0.1:
     resolution: {integrity: sha512-eYE6iEI62Ni1H8oIa7KlDU6uQBtqr4Eajni3wX7rpfXD8ysFx8z0+dri+KWEPWpBsxXfxu58x/0jvTVT1ekOSg==}
@@ -13211,6 +13220,11 @@ snapshots:
       - bare-abort-controller
       - bare-buffer
       - react-native-b4a
+
+  tech-stack-icons@3.7.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6):
+    dependencies:
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
 
   teex@1.0.1:
     dependencies:

@@ -245,6 +245,11 @@ export type { LiveEvent } from "./live.js";
 export type { DashboardRunActivityDay, DashboardSummary } from "./dashboard.js";
 export type { ActivityEvent } from "./activity.js";
 export type {
+  AgentActivityFeedEntry,
+  AgentActivityFeedResponse,
+  AgentActivityFeedSource,
+} from "./agent-activity-feed.js";
+export type {
   UserProfileActivitySummary,
   UserProfileAgentUsage,
   UserProfileDailyPoint,

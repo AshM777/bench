@@ -10,7 +10,7 @@ import type {
 } from "@bench/shared";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, Check, Copy, Bench } from "lucide-react";
+import { ArrowRight, Check, Copy, Paperclip } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Identity } from "./Identity";
 import { InlineEntitySelector, type InlineEntityOption } from "./InlineEntitySelector";
@@ -181,7 +181,7 @@ function formatTimelineAssigneeLabel(
     return agentMap?.get(assignee.agentId)?.name ?? assignee.agentId.slice(0, 8);
   }
   if (assignee.userId) {
-    return formatAssigneeUserLabel(assignee.userId, currentUserId) ?? "Board";
+    return formatAssigneeUserLabel(assignee.userId, currentUserId) ?? "Admin";
   }
   return "Unassigned";
 }
@@ -198,7 +198,7 @@ function formatTimelineActorName(
   if (actorType === "system") {
     return "System";
   }
-  return formatAssigneeUserLabel(actorId, currentUserId) ?? "Board";
+  return formatAssigneeUserLabel(actorId, currentUserId) ?? "Admin";
 }
 
 function initialsForName(name: string) {
@@ -1016,7 +1016,7 @@ export function CommentThread({
                   disabled={attaching}
                   title="Attach image"
                 >
-                  <Bench className="h-4 w-4" />
+                  <Paperclip className="h-4 w-4" />
                 </Button>
               </div>
             )}

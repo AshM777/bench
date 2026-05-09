@@ -36,6 +36,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Agent } from "@bench/shared";
+import { useDashboardAgentScope } from "../context/DashboardPersonaContext";
+import { CX } from "../lib/coworker-language";
+import { getBenchManagerEmailFromMetadata } from "../lib/manager-scope";
 
 function SidebarAgentItem({
   activeAgentId,
@@ -56,13 +59,14 @@ function SidebarAgentItem({
   runCount: number;
   setSidebarOpen: (open: boolean) => void;
 }) {
+  const peopleManagerEmail = getBenchManagerEmailFromMetadata(agent.metadata);
   const routeRef = agentRouteRef(agent);
   const href = activeTab ? `${agentUrl(agent)}/${activeTab}` : agentUrl(agent);
   const editHref = `${agentUrl(agent)}/configuration`;
   const isActive = activeAgentId === routeRef;
   const isPaused = agent.status === "paused";
   const isBudgetPaused = isPaused && agent.pauseReason === "budget";
-  const pauseResumeLabel = isPaused ? "Resume agent" : "Pause agent";
+  const pauseResumeLabel = isPaused ? "Resume coworker" : "Pause coworker";
   const pauseResumeDisabled = disabled || agent.status === "pending_approval" || isBudgetPaused;
   const pauseResumeDisabledLabel = disabled
     ? "Updating..."
@@ -86,7 +90,14 @@ function SidebarAgentItem({
         )}
       >
         <AgentIcon icon={agent.icon} className="shrink-0 h-3.5 w-3.5 text-muted-foreground" />
-        <span className="flex-1 truncate">{agent.name}</span>
+        <span className="flex-1 min-w-0">
+          <span className="block truncate">{agent.name}</span>
+          {peopleManagerEmail ? (
+            <span className="block truncate text-[10px] font-mono text-muted-foreground leading-tight" title={`People manager: ${peopleManagerEmail}`}>
+              Mgr {peopleManagerEmail}
+            </span>
+          ) : null}
+        </span>
         {(agent.pauseReason === "budget" || runCount > 0) && (
           <span className="ml-auto flex items-center gap-1.5 shrink-0">
             {agent.pauseReason === "budget" ? (
@@ -132,7 +143,7 @@ function SidebarAgentItem({
               }}
             >
               <Pencil className="size-4" />
-              <span>Edit agent</span>
+              <span>Edit coworker</span>
             </Link>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
@@ -168,6 +179,7 @@ export function SidebarAgents() {
     queryFn: () => agentsApi.list(selectedCompanyId!),
     enabled: !!selectedCompanyId,
   });
+  const scope = useDashboardAgentScope(agents);
   const { data: session } = useQuery({
     queryKey: queryKeys.auth.session,
     queryFn: () => authApi.getSession(),
@@ -195,11 +207,16 @@ export function SidebarAgents() {
     return filtered;
   }, [agents]);
   const currentUserId = session?.user?.id ?? session?.session?.userId ?? null;
-  const { orderedAgents } = useAgentOrder({
+  const { orderedAgents: orderedAgentsRaw } = useAgentOrder({
     agents: visibleAgents,
     companyId: selectedCompanyId,
     userId: currentUserId,
   });
+
+  const orderedAgents = useMemo(() => {
+    if (!scope.isManagerView || !scope.scopedAgentIds) return orderedAgentsRaw;
+    return orderedAgentsRaw.filter((a) => scope.scopedAgentIds!.has(a.id));
+  }, [orderedAgentsRaw, scope.isManagerView, scope.scopedAgentIds]);
 
   const agentMatch = location.pathname.match(/^\/(?:[^/]+\/)?agents\/([^/]+)(?:\/([^/]+))?/);
   const activeAgentId = agentMatch?.[1] ?? null;
@@ -230,14 +247,14 @@ export function SidebarAgents() {
         queryClient.invalidateQueries({ queryKey: queryKeys.agents.detail(agentRouteRef(agent)) }),
       ]);
       pushToast({
-        title: action === "pause" ? "Agent paused" : "Agent resumed",
+        title: action === "pause" ? "Coworker paused" : "Coworker resumed",
         body: agent.name,
         tone: "success",
       });
     },
     onError: (error, { agent, action }) => {
       pushToast({
-        title: action === "pause" ? "Could not pause agent" : "Could not resume agent",
+        title: action === "pause" ? "Could not pause coworker" : "Could not resume coworker",
         body: error instanceof Error ? error.message : agent.name,
         tone: "error",
       });
@@ -263,7 +280,7 @@ export function SidebarAgents() {
               )}
             />
             <span className="text-[10px] font-medium uppercase tracking-widest font-mono text-muted-foreground/60">
-              Agents
+              {CX.Coworkers}
             </span>
           </CollapsibleTrigger>
           <button
@@ -272,7 +289,7 @@ export function SidebarAgents() {
               openNewAgent();
             }}
             className="flex items-center justify-center h-4 w-4 rounded text-muted-foreground/60 hover:text-foreground hover:bg-accent/50 transition-colors"
-            aria-label="New agent"
+            aria-label={CX.newCoworker}
           >
             <Plus className="h-3 w-3" />
           </button>

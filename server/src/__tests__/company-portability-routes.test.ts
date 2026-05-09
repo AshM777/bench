@@ -112,7 +112,7 @@ async function createApp(actor: Record<string, unknown>) {
 }
 
 const companyId = "11111111-1111-4111-8111-111111111111";
-const ceoAgentId = "ceo-agent";
+const adminAgentId = "admin-agent";
 const engineerAgentId = "engineer-agent";
 
 const exportRequest = {
@@ -145,7 +145,7 @@ describe.sequential("company portability routes", () => {
     mockAgentService.getById.mockImplementation(async (id: string) => ({
       id,
       companyId,
-      role: id === ceoAgentId ? "ceo" : "engineer",
+      role: id === adminAgentId ? "admin" : "engineer",
     }));
     mockCompanyPortabilityService.exportBundle.mockResolvedValue(createExportResult());
     mockCompanyPortabilityService.previewExport.mockResolvedValue({
@@ -165,7 +165,7 @@ describe.sequential("company portability routes", () => {
     });
   });
 
-  it.sequential("rejects non-CEO agents from CEO-safe export preview routes", async () => {
+  it.sequential("rejects non-Admin coworkers from Admin-safe export preview routes", async () => {
     const app = await createApp({
       type: "agent",
       agentId: engineerAgentId,
@@ -179,11 +179,11 @@ describe.sequential("company portability routes", () => {
       .send(exportRequest);
 
     expect(res.status).toBe(403);
-    expect(res.body.error).toContain("Only CEO agents");
+    expect(res.body.error).toContain("Only Admin coworkers");
     expect(mockCompanyPortabilityService.previewExport).not.toHaveBeenCalled();
   });
 
-  it.sequential("rejects non-CEO agents from legacy and CEO-safe export bundle routes", async () => {
+  it.sequential("rejects non-Admin coworkers from legacy and Admin-safe export bundle routes", async () => {
     const app = await createApp({
       type: "agent",
       agentId: engineerAgentId,
@@ -196,12 +196,12 @@ describe.sequential("company portability routes", () => {
       const res = await request(app).post(path).send(exportRequest);
 
       expect(res.status).toBe(403);
-      expect(res.body.error).toContain("Only CEO agents");
+      expect(res.body.error).toContain("Only Admin coworkers");
     }
     expect(mockCompanyPortabilityService.exportBundle).not.toHaveBeenCalled();
   });
 
-  it.sequential("allows CEO agents to use company-scoped export preview routes", async () => {
+  it.sequential("allows Admin coworkers to use company-scoped export preview routes", async () => {
     mockCompanyPortabilityService.previewExport.mockResolvedValue({
       rootPath: "bench",
       manifest: { agents: [], skills: [], projects: [], issues: [], envInputs: [], includes: { company: true, agents: true, projects: true, issues: false, skills: false }, company: null, schemaVersion: 1, generatedAt: new Date().toISOString(), source: null },
@@ -213,7 +213,7 @@ describe.sequential("company portability routes", () => {
     });
     const app = await createApp({
       type: "agent",
-      agentId: ceoAgentId,
+      agentId: adminAgentId,
       companyId,
       source: "agent_key",
       runId: "run-1",
@@ -227,11 +227,11 @@ describe.sequential("company portability routes", () => {
     expect(res.body.rootPath).toBe("bench");
   });
 
-  it.sequential("allows CEO agents to export through legacy and CEO-safe bundle routes", async () => {
+  it.sequential("allows Admin coworkers to export through legacy and Admin-safe bundle routes", async () => {
     mockCompanyPortabilityService.exportBundle.mockResolvedValue(createExportResult());
     const app = await createApp({
       type: "agent",
-      agentId: ceoAgentId,
+      agentId: adminAgentId,
       companyId,
       source: "agent_key",
       runId: "run-1",
@@ -248,7 +248,7 @@ describe.sequential("company portability routes", () => {
     expect(mockCompanyPortabilityService.exportBundle).toHaveBeenNthCalledWith(2, companyId, exportRequest);
   });
 
-  it.sequential("allows board users to export through legacy and CEO-safe bundle routes", async () => {
+  it.sequential("allows board users to export through legacy and Admin-safe bundle routes", async () => {
     mockCompanyPortabilityService.exportBundle.mockResolvedValue(createExportResult());
     const app = await createApp({
       type: "board",
@@ -267,10 +267,10 @@ describe.sequential("company portability routes", () => {
     expect(mockCompanyPortabilityService.exportBundle).toHaveBeenCalledTimes(2);
   });
 
-  it.sequential("rejects replace collision strategy on CEO-safe import routes", async () => {
+  it.sequential("rejects replace collision strategy on Admin-safe import routes", async () => {
     const app = await createApp({
       type: "agent",
-      agentId: ceoAgentId,
+      agentId: adminAgentId,
       companyId: "11111111-1111-4111-8111-111111111111",
       source: "agent_key",
       runId: "run-1",
@@ -335,10 +335,10 @@ describe.sequential("company portability routes", () => {
     expect(mockCompanyPortabilityService.previewImport).not.toHaveBeenCalled();
   });
 
-  it.sequential("rejects replace collision strategy on CEO-safe import apply routes", async () => {
+  it.sequential("rejects replace collision strategy on Admin-safe import apply routes", async () => {
     const app = await createApp({
       type: "agent",
-      agentId: ceoAgentId,
+      agentId: adminAgentId,
       companyId: "11111111-1111-4111-8111-111111111111",
       source: "agent_key",
       runId: "run-1",
@@ -358,7 +358,7 @@ describe.sequential("company portability routes", () => {
     expect(mockCompanyPortabilityService.importBundle).not.toHaveBeenCalled();
   });
 
-  it.sequential("rejects non-CEO agents from CEO-safe import preview routes", async () => {
+  it.sequential("rejects non-Admin coworkers from Admin-safe import preview routes", async () => {
     const app = await createApp({
       type: "agent",
       agentId: engineerAgentId,
@@ -377,11 +377,11 @@ describe.sequential("company portability routes", () => {
       });
 
     expect(res.status).toBe(403);
-    expect(res.body.error).toContain("Only CEO agents");
+    expect(res.body.error).toContain("Only Admin coworkers");
     expect(mockCompanyPortabilityService.previewImport).not.toHaveBeenCalled();
   });
 
-  it.sequential("rejects non-CEO agents from CEO-safe import apply routes", async () => {
+  it.sequential("rejects non-Admin coworkers from Admin-safe import apply routes", async () => {
     const app = await createApp({
       type: "agent",
       agentId: engineerAgentId,
@@ -400,7 +400,7 @@ describe.sequential("company portability routes", () => {
       });
 
     expect(res.status).toBe(403);
-    expect(res.body.error).toContain("Only CEO agents");
+    expect(res.body.error).toContain("Only Admin coworkers");
     expect(mockCompanyPortabilityService.importBundle).not.toHaveBeenCalled();
   });
 

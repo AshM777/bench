@@ -1,8 +1,8 @@
 import type {
   AgentAdapterType,
+  CoworkerRole,
   ModelProfileKey,
   PauseReason,
-  AgentRole,
   AgentStatus,
 } from "../constants.js";
 import type {
@@ -58,7 +58,7 @@ export interface AgentInstructionsBundle {
 
 export interface AgentAccessState {
   canAssignTasks: boolean;
-  taskAssignSource: "explicit_grant" | "agent_creator" | "ceo_role" | "none";
+  taskAssignSource: "explicit_grant" | "agent_creator" | "admin_role" | "none";
   membership: CompanyMembership | null;
   grants: PrincipalPermissionGrant[];
 }
@@ -66,7 +66,7 @@ export interface AgentAccessState {
 export interface AgentChainOfCommandEntry {
   id: string;
   name: string;
-  role: AgentRole;
+  role: CoworkerRole;
   title: string | null;
 }
 
@@ -75,7 +75,7 @@ export interface Agent {
   companyId: string;
   name: string;
   urlKey: string;
-  role: AgentRole;
+  role: CoworkerRole;
   title: string | null;
   icon: string | null;
   status: AgentStatus;

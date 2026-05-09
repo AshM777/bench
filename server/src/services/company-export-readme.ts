@@ -4,15 +4,23 @@
 import type { CompanyPortabilityManifest } from "@bench/shared";
 
 const ROLE_LABELS: Record<string, string> = {
-  ceo: "CEO",
-  cto: "CTO",
-  cmo: "CMO",
-  cfo: "CFO",
+  admin: "Admin",
+  ceo: "Admin",
+  security: "Security",
+  engineer: "Engineer",
+  designer: "Designer",
+  pm: "PM",
+  qa: "QA",
+  devops: "DevOps",
+  researcher: "Researcher",
+  general: "General",
   coo: "COO",
   vp: "VP",
   manager: "Manager",
-  engineer: "Engineer",
   agent: "Agent",
+  cto: "General",
+  cmo: "General",
+  cfo: "General",
 };
 
 /**

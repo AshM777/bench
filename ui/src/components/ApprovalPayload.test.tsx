@@ -14,7 +14,7 @@ describe("approvalLabel", () => {
       approvalLabel("request_board_approval", {
         title: "Reply with an ASCII frog",
       }),
-    ).toBe("Board Approval: Reply with an ASCII frog");
+    ).toBe("Admin Approval: Reply with an ASCII frog");
   });
 });
 
@@ -39,7 +39,7 @@ describe("ApprovalPayloadRenderer", () => {
           type="request_board_approval"
           payload={{
             title: "Reply with an ASCII frog",
-            summary: "Board asked for approval before posting the frog.",
+            summary: "Admin asked for approval before posting the frog.",
             recommendedAction: "Approve the frog reply.",
             nextActionOnApproval: "Post the frog comment on the issue.",
             risks: ["The frog might be too powerful."],
@@ -50,7 +50,7 @@ describe("ApprovalPayloadRenderer", () => {
     });
 
     expect(container.textContent).toContain("Reply with an ASCII frog");
-    expect(container.textContent).toContain("Board asked for approval before posting the frog.");
+    expect(container.textContent).toContain("Admin asked for approval before posting the frog.");
     expect(container.textContent).toContain("Approve the frog reply.");
     expect(container.textContent).toContain("Post the frog comment on the issue.");
     expect(container.textContent).toContain("The frog might be too powerful.");
@@ -72,13 +72,13 @@ describe("ApprovalPayloadRenderer", () => {
           hidePrimaryTitle
           payload={{
             title: "Reply with an ASCII frog",
-            summary: "Board asked for approval before posting the frog.",
+            summary: "Admin asked for approval before posting the frog.",
           }}
         />,
       );
     });
 
-    expect(container.textContent).toContain("Board asked for approval before posting the frog.");
+    expect(container.textContent).toContain("Admin asked for approval before posting the frog.");
     expect(container.textContent).not.toContain("TitleReply with an ASCII frog");
 
     act(() => {

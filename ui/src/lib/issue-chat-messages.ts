@@ -358,7 +358,7 @@ function createTimelineEventMessage(args: {
     ? (agentMap?.get(event.actorId)?.name ?? event.actorId.slice(0, 8))
     : event.actorType === "system"
       ? "System"
-      : (formatAssigneeUserLabel(event.actorId, currentUserId, userLabelMap) ?? "Board");
+      : (formatAssigneeUserLabel(event.actorId, currentUserId, userLabelMap) ?? "Admin");
 
   const lines: string[] = [
     event.followUpRequested ? `${actorName} requested follow-up` : `${actorName} updated this issue`,

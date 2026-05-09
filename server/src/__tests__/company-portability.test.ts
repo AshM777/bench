@@ -1816,7 +1816,7 @@ describe("company portability", () => {
     const preview = await portability.previewImport({
       source: {
         type: "inline",
-        rootPath: "ceo-package",
+        rootPath: "admin-package",
         files: {
           "COMPANY.md": [
             "---",
@@ -1825,13 +1825,13 @@ describe("company portability", () => {
             "---",
             "",
           ].join("\n"),
-          "agents/ceo/AGENTS.md": [
+          "agents/admin/AGENTS.md": [
             "---",
-            'name: "CEO"',
-            'role: "ceo"',
+            'name: "Admin"',
+            'role: "admin"',
             "---",
             "",
-            "# CEO",
+            "# Admin",
             "",
             "You run the company.",
             "",
@@ -1839,7 +1839,7 @@ describe("company portability", () => {
         },
       },
       include: { company: true, agents: true, projects: false, issues: false },
-      target: { mode: "new_company", newCompanyName: "CEO Role Test" },
+      target: { mode: "new_company", newCompanyName: "Admin Role Test" },
       agents: "all",
       collisionStrategy: "rename",
     });
@@ -1847,9 +1847,9 @@ describe("company portability", () => {
     expect(preview.errors).toEqual([]);
     expect(preview.manifest.agents).toEqual([
       expect.objectContaining({
-        slug: "ceo",
-        name: "CEO",
-        role: "ceo",
+        slug: "admin",
+        name: "Admin",
+        role: "admin",
       }),
     ]);
   });

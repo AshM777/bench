@@ -84,7 +84,7 @@ function resolveActorLabel(
   }
   if (actorType === "system") return "System";
   if (actorType === "user" && actorId) {
-    return resolveUserName(queryClient, companyId, actorId) ?? "Board";
+    return resolveUserName(queryClient, companyId, actorId) ?? "Admin";
   }
   return "Someone";
 }

@@ -131,10 +131,10 @@ describeEmbeddedPostgres("workspace runtime service authz helper", () => {
     })).resolves.toBeUndefined();
   });
 
-  it("allows CEO agents to manage any project workspace runtime services in their company", async () => {
+  it("allows Admin coworkers to manage any project workspace runtime services in their company", async () => {
     const companyId = await seedCompany();
     const { projectWorkspaceId } = await seedProjectWorkspace(companyId);
-    const ceoAgentId = await seedAgent(companyId, { role: "ceo", name: "CEO" });
+    const ceoAgentId = await seedAgent(companyId, { role: "admin", name: "Admin" });
 
     await expect(assertCanManageProjectWorkspaceRuntimeServices(db, {
       actor: {

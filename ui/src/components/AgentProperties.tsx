@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@/lib/router";
-import { AGENT_ROLE_LABELS, type Agent, type AgentRuntimeState } from "@bench/shared";
+import { COWORKER_ROLE_LABELS, type Agent, type AgentRuntimeState } from "@bench/shared";
 import { agentsApi } from "../api/agents";
 import { useCompany } from "../context/CompanyContext";
 import { getAdapterLabel } from "../adapters/adapter-display-registry";
@@ -15,7 +15,7 @@ interface AgentPropertiesProps {
   runtimeState?: AgentRuntimeState;
 }
 
-const roleLabels = AGENT_ROLE_LABELS as Record<string, string>;
+const roleLabels = COWORKER_ROLE_LABELS as Record<string, string>;
 
 function PropertyRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (

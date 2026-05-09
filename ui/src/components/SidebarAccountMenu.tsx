@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  ArrowLeftRight,
   BookOpen,
   LogOut,
   type LucideIcon,
@@ -14,6 +15,7 @@ import type { DeploymentMode } from "@bench/shared";
 import { Link } from "@/lib/router";
 import { authApi } from "@/api/auth";
 import { queryKeys } from "@/lib/queryKeys";
+import { useDashboardPersonaOptional } from "../context/DashboardPersonaContext";
 import { useSidebar } from "../context/SidebarContext";
 import { useTheme } from "../context/ThemeContext";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -112,6 +114,7 @@ export function SidebarAccountMenu({
   const queryClient = useQueryClient();
   const { isMobile, setSidebarOpen } = useSidebar();
   const { theme, toggleTheme } = useTheme();
+  const dashboardPersona = useDashboardPersonaOptional();
   const open = controlledOpen ?? internalOpen;
   const setOpen = onOpenChange ?? setInternalOpen;
   const { data: session } = useQuery({
@@ -128,9 +131,9 @@ export function SidebarAccountMenu({
     },
   });
 
-  const displayName = session?.user.name?.trim() || "Board";
+  const displayName = session?.user.name?.trim() || "Admin";
   const secondaryLabel =
-    session?.user.email?.trim() || (deploymentMode === "authenticated" ? "Signed in" : "Local workspace board");
+    session?.user.email?.trim() || (deploymentMode === "authenticated" ? "Signed in" : "Local workspace");
   const accountBadge = deploymentMode === "authenticated" ? "Account" : "Local";
   const initials = deriveInitials(displayName);
   const profileHref = `/u/${deriveUserSlug(session?.user.name, session?.user.email, session?.user.id)}`;
@@ -200,6 +203,27 @@ export function SidebarAccountMenu({
                 href={PROFILE_SETTINGS_PATH}
                 onClick={closeNavigationChrome}
               />
+              {dashboardPersona ? (
+                <MenuAction
+                  label={
+                    dashboardPersona.persona === "admin"
+                      ? "Switch to Manager profile"
+                      : "Switch to Admin profile"
+                  }
+                  description={
+                    dashboardPersona.persona === "admin"
+                      ? "Same as View as Manager — scoped coworkers and execution-focused navigation."
+                      : "Same as View as Admin — full oversight, hires, and approvals layout."
+                  }
+                  icon={ArrowLeftRight}
+                  onClick={() => {
+                    dashboardPersona.setPersona(
+                      dashboardPersona.persona === "admin" ? "manager" : "admin",
+                    );
+                    closeNavigationChrome();
+                  }}
+                />
+              ) : null}
               <MenuAction
                 label="Instance settings"
                 description="Jump back to the last settings page you opened."

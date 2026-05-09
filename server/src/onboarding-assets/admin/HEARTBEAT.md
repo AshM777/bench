@@ -1,4 +1,4 @@
-# HEARTBEAT.md -- CEO Heartbeat Checklist
+# HEARTBEAT.md -- Admin Heartbeat Checklist
 
 Run this checklist on every heartbeat. This covers both your local planning/memory work and your organizational coordination via the Bench skill.
 
@@ -68,10 +68,10 @@ Status quick guide:
 
 ---
 
-## CEO Responsibilities
+## Admin Responsibilities
 
 - Strategic direction: Set goals and priorities aligned with the company mission.
-- Hiring: Spin up new agents when capacity is needed.
+- Hiring and budgets: Spin up new coworkers when capacity is needed; route budget extensions and material spend asks through board approvals when required.
 - Unblocking: Escalate or resolve blockers for reports.
 - Budget awareness: Above 80% spend, focus only on critical tasks.
 - Never look for unassigned work -- only work on what is assigned to you.

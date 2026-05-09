@@ -52,6 +52,8 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import type { RoutineListItem, RoutineVariable } from "@bench/shared";
+import { useDashboardAgentScope } from "../context/DashboardPersonaContext";
+import { issueTouchesScopedAgents } from "../lib/manager-scope";
 
 const concurrencyPolicies = ["coalesce_if_active", "always_enqueue", "skip_if_active"];
 const catchUpPolicies = ["skip_missed", "enqueue_missed_with_cap"];
@@ -391,6 +393,7 @@ export function Routines() {
     queryFn: () => agentsApi.list(selectedCompanyId!),
     enabled: !!selectedCompanyId,
   });
+  const scope = useDashboardAgentScope(agents);
   const { data: projects } = useQuery({
     queryKey: queryKeys.projects.list(selectedCompanyId!),
     queryFn: () => projectsApi.list(selectedCompanyId!),
@@ -520,18 +523,17 @@ export function Routines() {
 
   const recentAssigneeIds = useMemo(() => getRecentAssigneeIds(), [composerOpen]);
   const recentProjectIds = useMemo(() => getRecentProjectIds(), [composerOpen]);
-  const assigneeOptions = useMemo<InlineEntityOption[]>(
-    () =>
-      sortAgentsByRecency(
-        (agents ?? []).filter((agent) => agent.status !== "terminated"),
-        recentAssigneeIds,
-      ).map((agent) => ({
-        id: agent.id,
-        label: agent.name,
-        searchText: `${agent.name} ${agent.role} ${agent.title ?? ""}`,
-      })),
-    [agents, recentAssigneeIds],
-  );
+  const assigneeOptions = useMemo<InlineEntityOption[]>(() => {
+    let pool = (agents ?? []).filter((agent) => agent.status !== "terminated");
+    if (scope.isManagerView && scope.scopedAgentIds) {
+      pool = pool.filter((a) => scope.scopedAgentIds!.has(a.id));
+    }
+    return sortAgentsByRecency(pool, recentAssigneeIds).map((agent) => ({
+      id: agent.id,
+      label: agent.name,
+      searchText: `${agent.name} ${agent.role} ${agent.title ?? ""}`,
+    }));
+  }, [agents, recentAssigneeIds, scope.isManagerView, scope.scopedAgentIds]);
   const projectOptions = useMemo<InlineEntityOption[]>(
     () =>
       (projects ?? []).map((project) => ({
@@ -554,10 +556,21 @@ export function Routines() {
     () => sortRoutines(routines ?? [], routineViewState.sortField, routineViewState.sortDir),
     [routineViewState.sortDir, routineViewState.sortField, routines],
   );
+  const visibilityFilteredRoutines = useMemo(() => {
+    if (!scope.isManagerView || !scope.scopedAgentIds) return sortedRoutines;
+    return sortedRoutines.filter(
+      (r) => r.assigneeAgentId !== null && scope.scopedAgentIds!.has(r.assigneeAgentId),
+    );
+  }, [sortedRoutines, scope.isManagerView, scope.scopedAgentIds]);
   const routineGroups = useMemo(
-    () => buildRoutineGroups(sortedRoutines, routineViewState.groupBy, projectById, agentById),
-    [agentById, projectById, routineViewState.groupBy, sortedRoutines],
+    () => buildRoutineGroups(visibilityFilteredRoutines, routineViewState.groupBy, projectById, agentById),
+    [agentById, projectById, routineViewState.groupBy, visibilityFilteredRoutines],
   );
+  const scopedRoutineExecutionIssues = useMemo(() => {
+    const list = routineExecutionIssues ?? [];
+    if (!scope.isManagerView || !scope.scopedAgentIds) return list;
+    return list.filter((issue) => issueTouchesScopedAgents(issue, scope.scopedAgentIds!));
+  }, [routineExecutionIssues, scope.isManagerView, scope.scopedAgentIds]);
   const recentRunsIssueLinkState = useMemo(
     () =>
       createIssueDetailLocationState(
@@ -621,6 +634,13 @@ export function Routines() {
 
   return (
     <div className="space-y-6">
+      {scope.isManagerView && (!scope.sessionEmail || scope.scopedAgents.length === 0) ? (
+        <p className="text-sm text-muted-foreground rounded-md border border-border bg-muted/30 px-3 py-2">
+          {!scope.sessionEmail
+            ? "Manager view needs a signed-in email to filter routines for your coworkers."
+            : "No coworkers assigned to you — routines list is empty until benchManagerEmail is set on agents."}
+        </p>
+      ) : null}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight">
@@ -649,7 +669,8 @@ export function Routines() {
         <TabsContent value="routines" className="space-y-4">
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm text-muted-foreground">
-              {(routines ?? []).length} routine{(routines ?? []).length === 1 ? "" : "s"}
+              {visibilityFilteredRoutines.length} routine{visibilityFilteredRoutines.length === 1 ? "" : "s"}
+              {scope.isManagerView ? " (your team)" : ""}
             </p>
             <div className="flex items-center gap-1">
               <Popover>
@@ -728,7 +749,7 @@ export function Routines() {
         </TabsContent>
         <TabsContent value="runs">
           <IssuesList
-            issues={routineExecutionIssues ?? []}
+            issues={scopedRoutineExecutionIssues ?? []}
             isLoading={recentRunsLoading}
             error={recentRunsError as Error | null}
             agents={agents}
@@ -1006,7 +1027,7 @@ export function Routines() {
 
       {activeTab === "routines" ? (
         <div>
-          {(routines ?? []).length === 0 ? (
+          {visibilityFilteredRoutines.length === 0 ? (
             <div className="py-12">
               <EmptyState
                 icon={Repeat}

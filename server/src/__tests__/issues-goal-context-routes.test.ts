@@ -140,7 +140,7 @@ const legacyProjectLinkedIssue = {
   companyId: "company-1",
   identifier: "PAP-581",
   title: "Legacy onboarding task",
-  description: "Seed the first CEO task",
+  description: "Seed the first Admin task",
   status: "todo",
   priority: "medium",
   projectId: "22222222-2222-4222-8222-222222222222",

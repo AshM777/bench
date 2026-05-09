@@ -20,6 +20,7 @@ import { listUIAdapters } from "../adapters";
 import { isVisualAdapterChoice } from "../adapters/metadata";
 import { getAdapterDisplay } from "../adapters/adapter-display-registry";
 import { useDisabledAdaptersSync } from "../adapters/use-disabled-adapters";
+import { CX } from "../lib/coworker-language";
 
 /**
  * Adapter types that are suitable for agent creation (excludes internal
@@ -45,14 +46,14 @@ export function NewAgentDialog() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Fetch existing agents for the "Ask CEO" flow
+  // Fetch existing agents for the "Ask Admin" flow
   const { data: agents } = useQuery({
     queryKey: queryKeys.agents.list(selectedCompanyId!),
     queryFn: () => agentsApi.list(selectedCompanyId!),
     enabled: !!selectedCompanyId && newAgentOpen,
   });
 
-  const ceoAgent = (agents ?? []).find((a) => a.role === "ceo");
+  const adminAgent = (agents ?? []).find((a) => a.role === "admin");
 
   // Build the adapter grid from the UI registry merged with display metadata.
   // This automatically includes external/plugin adapters.
@@ -85,12 +86,12 @@ export function NewAgentDialog() {
       });
   }, [disabledTypes, serverAdapters]);
 
-  function handleAskCeo() {
+  function handleAskAdmin() {
     closeNewAgent();
     openNewIssue({
-      assigneeAgentId: ceoAgent?.id,
-      title: "Create a new agent",
-      description: "(type in what kind of agent you want here)",
+      assigneeAgentId: adminAgent?.id,
+      title: CX.requestHireTitle,
+      description: CX.requestHireDescription,
     });
   }
 
@@ -120,7 +121,7 @@ export function NewAgentDialog() {
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
-          <span className="text-sm text-muted-foreground">Add a new agent</span>
+          <span className="text-sm text-muted-foreground">Add a new coworker</span>
           <Button
             variant="ghost"
             size="icon-xs"
@@ -143,15 +144,15 @@ export function NewAgentDialog() {
                   <Bot className="h-6 w-6 text-foreground" />
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  We recommend letting your CEO handle agent setup — they know the
-                  org structure and can configure reporting, permissions, and
-                  adapters.
+                  We recommend routing hires through your company <strong>Admin</strong> coworker.
+                  They align reporting lines, permissions, and adapters. Managers use{" "}
+                  <strong>Request coworker hire</strong> in the sidebar to open a structured ticket.
                 </p>
               </div>
 
-              <Button className="w-full" size="lg" onClick={handleAskCeo}>
+              <Button className="w-full" size="lg" onClick={handleAskAdmin}>
                 <Bot className="h-4 w-4 mr-2" />
-                Ask the CEO to create a new agent
+                Ask Admin to hire a coworker
               </Button>
 
               {/* Advanced link */}

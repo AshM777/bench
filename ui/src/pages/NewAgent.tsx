@@ -6,7 +6,7 @@ import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { agentsApi } from "../api/agents";
 import { companySkillsApi } from "../api/companySkills";
 import { queryKeys } from "../lib/queryKeys";
-import { AGENT_ROLES, type AdapterEnvironmentTestResult } from "@bench/shared";
+import { HIRABLE_COWORKER_ROLES, type AdapterEnvironmentTestResult } from "@bench/shared";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -28,6 +28,8 @@ import { useDisabledAdaptersSync } from "../adapters/use-disabled-adapters";
 import { isValidAdapterType } from "../adapters/metadata";
 import { ReportsToPicker } from "../components/ReportsToPicker";
 import { buildNewAgentHirePayload } from "../lib/new-agent-hire-payload";
+import { CX } from "../lib/coworker-language";
+import { Label } from "@/components/ui/label";
 import {
   DEFAULT_CODEX_LOCAL_BYPASS_APPROVALS_AND_SANDBOX,
   DEFAULT_CODEX_LOCAL_MODEL,
@@ -66,6 +68,7 @@ export function NewAgent() {
   const [title, setTitle] = useState("");
   const [role, setRole] = useState("general");
   const [reportsTo, setReportsTo] = useState<string | null>(null);
+  const [managerEmail, setManagerEmail] = useState("");
   const [configValues, setConfigValues] = useState<CreateConfigValues>(defaultCreateValues);
   const [selectedSkillKeys, setSelectedSkillKeys] = useState<string[]>([]);
   const [roleOpen, setRoleOpen] = useState(false);
@@ -106,19 +109,19 @@ export function NewAgent() {
   });
 
   const isFirstAgent = !agents || agents.length === 0;
-  const effectiveRole = isFirstAgent ? "ceo" : role;
+  const effectiveRole = isFirstAgent ? "admin" : role;
 
   useEffect(() => {
     setBreadcrumbs([
-      { label: "Agents", href: "/agents" },
-      { label: "New Agent" },
+      { label: CX.Coworkers, href: "/agents" },
+      { label: CX.newCoworker },
     ]);
   }, [setBreadcrumbs]);
 
   useEffect(() => {
     if (isFirstAgent) {
-      if (!name) setName("CEO");
-      if (!title) setTitle("CEO");
+      if (!name) setName("Admin");
+      if (!title) setTitle("Admin");
     }
   }, [isFirstAgent]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -190,6 +193,7 @@ export function NewAgent() {
         selectedSkillKeys,
         configValues,
         adapterConfig: buildAdapterConfig(),
+        managerEmail: isFirstAgent ? null : managerEmail.trim() || null,
       }),
     );
   }
@@ -223,9 +227,9 @@ export function NewAgent() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <h1 className="text-lg font-semibold">New Agent</h1>
+        <h1 className="text-lg font-semibold">{CX.newCoworker}</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Advanced agent configuration
+          Adapter, runtime, and onboarding settings for this hire.
         </p>
       </div>
 
@@ -234,7 +238,7 @@ export function NewAgent() {
         <div className="px-4 pt-4 pb-2">
           <input
             className="w-full text-lg font-semibold bg-transparent outline-none placeholder:text-muted-foreground/50"
-            placeholder="Agent name"
+            placeholder="Coworker name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             autoFocus
@@ -267,7 +271,7 @@ export function NewAgent() {
               </button>
             </PopoverTrigger>
             <PopoverContent className="w-36 p-1" align="start">
-              {AGENT_ROLES.map((r) => (
+              {HIRABLE_COWORKER_ROLES.map((r) => (
                 <button
                   key={r}
                   className={cn(
@@ -289,6 +293,27 @@ export function NewAgent() {
             disabled={isFirstAgent}
           />
         </div>
+
+        {!isFirstAgent ? (
+          <div className="px-4 py-3 border-t border-border space-y-2 max-w-lg">
+            <Label htmlFor="hire-manager-email" className="text-xs text-muted-foreground">
+              People manager email (optional)
+            </Label>
+            <input
+              id="hire-manager-email"
+              type="email"
+              autoComplete="email"
+              placeholder="manager@company.com — scopes Manager view"
+              className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground/50"
+              value={managerEmail}
+              onChange={(e) => setManagerEmail(e.target.value)}
+            />
+            <p className="text-[11px] text-muted-foreground leading-snug">
+              Stored on the hire as <span className="font-mono">benchManagerEmail</span> (normalized). The manager sees this
+              coworker when signed in with that address.
+            </p>
+          </div>
+        ) : null}
 
         {/* Shared config form */}
         <AgentConfigForm
@@ -342,7 +367,7 @@ export function NewAgent() {
         {/* Footer */}
         <div className="border-t border-border px-4 py-3">
           {isFirstAgent && (
-            <p className="text-xs text-muted-foreground mb-2">This will be the CEO</p>
+            <p className="text-xs text-muted-foreground mb-2">This will be the company Admin</p>
           )}
           {formError && (
             <p className="text-xs text-destructive mb-2">{formError}</p>
@@ -368,14 +393,14 @@ export function NewAgent() {
                   disabled={testAgentState.disabled}
                   onClick={() => testAgentAction?.()}
                 >
-                  {testAgentState.pending ? "Testing..." : "Test Agent"}
+                  {testAgentState.pending ? "Testing..." : "Test setup"}
                 </Button>
                 <Button
                   size="sm"
                   disabled={!name.trim() || createAgent.isPending}
                   onClick={handleSubmit}
                 >
-                  {createAgent.isPending ? "Creating…" : "Create agent"}
+                  {createAgent.isPending ? "Creating…" : `Create ${CX.coworker}`}
                 </Button>
               </div>
             </div>

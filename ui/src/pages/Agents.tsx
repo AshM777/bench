@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate, useLocation } from "@/lib/router";
 import { useQuery } from "@tanstack/react-query";
 import { agentsApi, type OrgNode } from "../api/agents";
+import { authApi } from "../api/auth";
 import { heartbeatsApi } from "../api/heartbeats";
 import { useCompany } from "../context/CompanyContext";
 import { useDialogActions } from "../context/DialogContext";
@@ -17,12 +18,16 @@ import { relativeTime, cn, agentRouteRef, agentUrl } from "../lib/utils";
 import { PageTabBar } from "../components/PageTabBar";
 import { Tabs } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Bot, Plus, List, GitBranch, SlidersHorizontal } from "lucide-react";
-import { AGENT_ROLE_LABELS, type Agent } from "@bench/shared";
+import { Bot, Plus, List, GitBranch, SlidersHorizontal, User } from "lucide-react";
+import { COWORKER_ROLE_LABELS, type Agent } from "@bench/shared";
 
 import { getAdapterLabel } from "../adapters/adapter-display-registry";
+import { useDashboardAgentScope } from "../context/DashboardPersonaContext";
+import { CX } from "../lib/coworker-language";
+import { getBenchManagerEmailFromMetadata } from "../lib/manager-scope";
+import { buildManagerScopedOrgNodes } from "../lib/manager-org-tree";
 
-const roleLabels = AGENT_ROLE_LABELS as Record<string, string>;
+const roleLabels = COWORKER_ROLE_LABELS as Record<string, string>;
 
 type FilterTab = "all" | "active" | "paused" | "error";
 
@@ -60,6 +65,14 @@ function filterOrgTree(nodes: OrgNode[], tab: FilterTab, showTerminated: boolean
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+function countOrgNodes(nodes: OrgNode[]): number {
+  let n = 0;
+  for (const node of nodes) {
+    n += 1 + countOrgNodes(node.reports);
+  }
+  return n;
+}
+
 export function Agents() {
   const { selectedCompanyId } = useCompany();
   const { openNewAgent } = useDialogActions();
@@ -79,6 +92,19 @@ export function Agents() {
     queryKey: queryKeys.agents.list(selectedCompanyId!),
     queryFn: () => agentsApi.list(selectedCompanyId!),
     enabled: !!selectedCompanyId,
+  });
+
+  const scope = useDashboardAgentScope(agents);
+
+  const { data: authSession } = useQuery({
+    queryKey: queryKeys.auth.session,
+    queryFn: () => authApi.getSession(),
+    enabled:
+      Boolean(selectedCompanyId) &&
+      scope.isManagerView &&
+      effectiveView === "org" &&
+      Boolean(scope.sessionEmail) &&
+      scope.scopedAgents.length > 0,
   });
 
   const { data: orgTree } = useQuery({
@@ -116,7 +142,7 @@ export function Agents() {
   }, [agents]);
 
   useEffect(() => {
-    setBreadcrumbs([{ label: "Agents" }]);
+    setBreadcrumbs([{ label: CX.Coworkers }]);
   }, [setBreadcrumbs]);
 
   if (!selectedCompanyId) {
@@ -127,11 +153,50 @@ export function Agents() {
     return <PageSkeleton variant="list" />;
   }
 
-  const filtered = filterAgents(agents ?? [], tab, showTerminated);
-  const filteredOrg = filterOrgTree(orgTree ?? [], tab, showTerminated);
+  const scopedAgentList =
+    scope.isManagerView && scope.scopedAgentIds
+      ? (agents ?? []).filter((a) => scope.scopedAgentIds!.has(a.id))
+      : (agents ?? []);
+
+  const filtered = filterAgents(scopedAgentList, tab, showTerminated);
+
+  const managerOrgRoots =
+    scope.isManagerView && scope.scopedAgents.length > 0
+      ? buildManagerScopedOrgNodes(scope.scopedAgents)
+      : null;
+
+  const tabFilteredOrg = filterOrgTree(orgTree ?? [], tab, showTerminated);
+  const filteredOrg =
+    scope.isManagerView
+      ? managerOrgRoots
+        ? filterOrgTree(managerOrgRoots, tab, showTerminated)
+        : []
+      : tabFilteredOrg;
+
+  const showManagerOrgChrome =
+    scope.isManagerView &&
+    Boolean(scope.sessionEmail) &&
+    effectiveView === "org" &&
+    scope.scopedAgents.length > 0;
+
+  const managerDisplayName =
+    authSession?.user?.name?.trim() ||
+    authSession?.user?.email?.trim() ||
+    scope.sessionEmail ||
+    "You";
+
+  const managerVisibleCoworkerCount = countOrgNodes(filteredOrg);
 
   return (
     <div className="space-y-4">
+      {scope.isManagerView && (!scope.sessionEmail || scope.scopedAgents.length === 0) ? (
+        <p className="text-sm text-muted-foreground rounded-md border border-border bg-muted/30 px-3 py-2">
+          {!scope.sessionEmail
+            ? "Manager view needs a signed-in email to list coworkers assigned to you."
+            : "No coworkers assigned yet — ask an admin to set benchManagerEmail on agents."}
+        </p>
+      ) : null}
+
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Tabs value={tab} onValueChange={(v) => navigate(`/agents/${v}`)}>
           <PageTabBar
@@ -201,13 +266,15 @@ export function Agents() {
           )}
           <Button size="sm" variant="outline" onClick={openNewAgent}>
             <Plus className="h-3.5 w-3.5 mr-1.5" />
-            New Agent
+            {CX.newCoworker}
           </Button>
         </div>
       </div>
 
       {filtered.length > 0 && (
-        <p className="text-xs text-muted-foreground">{filtered.length} agent{filtered.length !== 1 ? "s" : ""}</p>
+        <p className="text-xs text-muted-foreground">
+          {filtered.length} {filtered.length === 1 ? CX.coworker : CX.coworkers}
+        </p>
       )}
 
       {error && <p className="text-sm text-destructive">{error.message}</p>}
@@ -215,8 +282,8 @@ export function Agents() {
       {agents && agents.length === 0 && (
         <EmptyState
           icon={Bot}
-          message="Create your first agent to get started."
-          action="New Agent"
+          message={`Create your first ${CX.coworker} to get started.`}
+          action={CX.newCoworker}
           onAction={openNewAgent}
         />
       )}
@@ -225,11 +292,14 @@ export function Agents() {
       {effectiveView === "list" && filtered.length > 0 && (
         <div className="border border-border">
           {filtered.map((agent) => {
+            const mgr = getBenchManagerEmailFromMetadata(agent.metadata);
+            const subtitleBase = `${roleLabels[agent.role] ?? agent.role}${agent.title ? ` - ${agent.title}` : ""}`;
+            const subtitle = mgr ? `${subtitleBase} · People manager: ${mgr}` : subtitleBase;
             return (
               <EntityRow
                 key={agent.id}
                 title={agent.name}
-                subtitle={`${roleLabels[agent.role] ?? agent.role}${agent.title ? ` - ${agent.title}` : ""}`}
+                subtitle={subtitle}
                 to={agentUrl(agent)}
                 className={agent.pausedAt && tab !== "paused" ? "opacity-50" : ""}
                 leading={
@@ -290,26 +360,82 @@ export function Agents() {
         </p>
       )}
 
-      {/* Org chart view */}
-      {effectiveView === "org" && filteredOrg.length > 0 && (
-        <div className="border border-border py-1">
+      {/* Org chart — manager: virtual you + scoped coworker hierarchy (Reports to) */}
+      {showManagerOrgChrome ? (
+        <div className="rounded-lg border border-border bg-card overflow-hidden">
+          <div
+            className="flex items-start gap-3 px-4 py-3 bg-muted/35 border-b border-border"
+            aria-label="Your position as people manager"
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-background">
+              <User className="h-5 w-5 text-muted-foreground" aria-hidden />
+            </div>
+            <div className="min-w-0 flex-1 space-y-1">
+              <div className="text-sm font-semibold text-foreground">
+                {managerDisplayName}{" "}
+                <span className="font-normal text-muted-foreground">(you · people manager)</span>
+              </div>
+              {scope.sessionEmail ? (
+                <div className="text-xs font-mono text-muted-foreground truncate">{scope.sessionEmail}</div>
+              ) : null}
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                <span className="font-medium text-foreground/90">{scope.scopedAgents.length}</span>{" "}
+                {scope.scopedAgents.length === 1 ? CX.coworker : CX.coworkers} assigned to you
+                {managerVisibleCoworkerCount !== scope.scopedAgents.length ? (
+                  <>
+                    {" "}
+                    · <span className="font-medium text-foreground/90">{managerVisibleCoworkerCount}</span> visible with
+                    current filters
+                  </>
+                ) : null}
+                . Nested rows use each hire&apos;s <span className="font-medium text-foreground/90">Reports to</span>{" "}
+                link (coworkers may report to another coworker). Everyone shown shares your people-manager assignment.
+              </p>
+            </div>
+          </div>
+          <div className="px-2 py-2 sm:px-3">
+            {filteredOrg.length > 0 ? (
+              <div className="border-l-2 border-muted ml-2 sm:ml-3 pl-2 sm:pl-3 py-1 space-y-0">
+                {filteredOrg.map((node) => (
+                  <OrgTreeNode
+                    key={node.id}
+                    node={node}
+                    depth={0}
+                    agentMap={agentMap}
+                    liveRunByAgent={liveRunByAgent}
+                    tab={tab}
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-8 px-2">
+                No coworkers match the selected filter.
+              </p>
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      {/* Org chart — admin / full company */}
+      {effectiveView === "org" && !scope.isManagerView && filteredOrg.length > 0 ? (
+        <div className="border border-border py-1 rounded-lg overflow-hidden">
           {filteredOrg.map((node) => (
             <OrgTreeNode key={node.id} node={node} depth={0} agentMap={agentMap} liveRunByAgent={liveRunByAgent} tab={tab} />
           ))}
         </div>
-      )}
+      ) : null}
 
-      {effectiveView === "org" && orgTree && orgTree.length > 0 && filteredOrg.length === 0 && (
+      {effectiveView === "org" && !scope.isManagerView && orgTree && orgTree.length > 0 && filteredOrg.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-8">
           No agents match the selected filter.
         </p>
-      )}
+      ) : null}
 
-      {effectiveView === "org" && orgTree && orgTree.length === 0 && (
+      {effectiveView === "org" && !scope.isManagerView && (!orgTree || orgTree.length === 0) ? (
         <p className="text-sm text-muted-foreground text-center py-8">
           No organizational hierarchy defined.
         </p>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -328,6 +454,7 @@ function OrgTreeNode({
   tab: FilterTab;
 }) {
   const agent = agentMap.get(node.id);
+  const peopleManagerEmail = agent ? getBenchManagerEmailFromMetadata(agent.metadata) : null;
 
   const statusColor = agentStatusDot[node.status] ?? agentStatusDotDefault;
 
@@ -341,11 +468,18 @@ function OrgTreeNode({
           <span className={`absolute inline-flex h-full w-full rounded-full ${statusColor}`} />
         </span>
         <div className="flex-1 min-w-0">
-          <span className="text-sm font-medium">{node.name}</span>
-          <span className="text-xs text-muted-foreground ml-2">
-            {roleLabels[node.role] ?? node.role}
-            {agent?.title ? ` - ${agent.title}` : ""}
-          </span>
+          <div className="min-w-0">
+            <span className="text-sm font-medium">{node.name}</span>
+            <span className="text-xs text-muted-foreground ml-2">
+              {roleLabels[node.role] ?? node.role}
+              {agent?.title ? ` - ${agent.title}` : ""}
+            </span>
+          </div>
+          {peopleManagerEmail ? (
+            <div className="text-[11px] text-muted-foreground truncate mt-0.5 font-mono">
+              People manager: {peopleManagerEmail}
+            </div>
+          ) : null}
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <span className="sm:hidden">

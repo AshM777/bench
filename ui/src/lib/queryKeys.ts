@@ -29,6 +29,8 @@ export const queryKeys = {
       ["agents", companyId, "adapter-model-profiles", adapterType] as const,
     detectModel: (companyId: string, adapterType: string) =>
       ["agents", companyId, "detect-model", adapterType] as const,
+    activityFeed: (companyId: string, agentId: string, limit?: number) =>
+      ["agents", "activity-feed", companyId, agentId, limit ?? "__default__"] as const,
   },
   issues: {
     list: (companyId: string) => ["issues", companyId] as const,

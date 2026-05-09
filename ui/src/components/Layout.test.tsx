@@ -59,6 +59,10 @@ vi.mock("./NewIssueDialog", () => ({
   NewIssueDialog: () => null,
 }));
 
+vi.mock("./RequestCoworkerHireDialog", () => ({
+  RequestCoworkerHireDialog: () => null,
+}));
+
 vi.mock("./NewProjectDialog", () => ({
   NewProjectDialog: () => null,
 }));

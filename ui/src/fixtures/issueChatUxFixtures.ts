@@ -101,7 +101,7 @@ export const issueChatUxReassignOptions: InlineEntityOption[] = [
   },
   {
     id: "user:user-1",
-    label: "Board",
+    label: "Admin",
     searchText: "board user",
   },
 ];

@@ -20,6 +20,7 @@ import { RoutineDetail } from "./pages/RoutineDetail";
 import { UserProfile } from "./pages/UserProfile";
 import { ExecutionWorkspaceDetail } from "./pages/ExecutionWorkspaceDetail";
 import { Goals } from "./pages/Goals";
+import { ConnectorsDirectory } from "./pages/ConnectorsDirectory";
 import { GoalDetail } from "./pages/GoalDetail";
 import { Approvals } from "./pages/Approvals";
 import { ApprovalDetail } from "./pages/ApprovalDetail";
@@ -113,6 +114,7 @@ function boardRoutes() {
       <Route path="execution-workspaces/:workspaceId/routines" element={<ExecutionWorkspaceDetail />} />
       <Route path="goals" element={<Goals />} />
       <Route path="goals/:goalId" element={<GoalDetail />} />
+      <Route path="connectors" element={<ConnectorsDirectory />} />
       <Route path="approvals" element={<Navigate to="/approvals/pending" replace />} />
       <Route path="approvals/pending" element={<Approvals />} />
       <Route path="approvals/all" element={<Approvals />} />
@@ -294,6 +296,7 @@ export function App() {
           <Route path="agents/:agentId" element={<UnprefixedBoardRedirect />} />
           <Route path="agents/:agentId/:tab" element={<UnprefixedBoardRedirect />} />
           <Route path="agents/:agentId/runs/:runId" element={<UnprefixedBoardRedirect />} />
+          <Route path="connectors" element={<UnprefixedBoardRedirect />} />
           <Route path="projects" element={<UnprefixedBoardRedirect />} />
           <Route path="projects/:projectId" element={<UnprefixedBoardRedirect />} />
           <Route path="projects/:projectId/overview" element={<UnprefixedBoardRedirect />} />

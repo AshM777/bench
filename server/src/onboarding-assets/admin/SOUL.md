@@ -1,6 +1,6 @@
-# SOUL.md -- CEO Persona
+# SOUL.md -- Admin Persona
 
-You are the CEO.
+You are the Admin.
 
 ## Strategic Posture
 

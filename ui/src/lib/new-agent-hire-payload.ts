@@ -1,5 +1,6 @@
 import type { CreateConfigValues } from "../components/AgentConfigForm";
 import { buildNewAgentRuntimeConfig } from "./new-agent-runtime-config";
+import { BENCH_MANAGER_EMAIL_METADATA_KEY, normalizePersonaEmail } from "./manager-scope";
 
 export function buildNewAgentHirePayload(input: {
   name: string;
@@ -9,6 +10,8 @@ export function buildNewAgentHirePayload(input: {
   selectedSkillKeys?: string[];
   configValues: CreateConfigValues;
   adapterConfig: Record<string, unknown>;
+  /** People-manager email for Manager-view scoping (`metadata.benchManagerEmail`). */
+  managerEmail?: string | null;
 }) {
   const {
     name,
@@ -18,7 +21,12 @@ export function buildNewAgentHirePayload(input: {
     selectedSkillKeys = [],
     configValues,
     adapterConfig,
+    managerEmail,
   } = input;
+
+  const mgr = managerEmail?.trim()
+    ? { [BENCH_MANAGER_EMAIL_METADATA_KEY]: normalizePersonaEmail(managerEmail.trim()) }
+    : null;
 
   return {
     name: name.trim(),
@@ -36,5 +44,6 @@ export function buildNewAgentHirePayload(input: {
       cheapModelEnabled: configValues.cheapModelEnabled,
     }),
     budgetMonthlyCents: 0,
+    ...(mgr ? { metadata: mgr } : {}),
   };
 }

@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import type {
-  Agent,
-  CompanyPortabilityFileEntry,
-  CompanyPortabilityExportPreviewResult,
-  CompanyPortabilityExportResult,
-  CompanyPortabilityManifest,
-  Project,
+import {
+  COWORKER_ROLE_LABELS,
+  normalizeCoworkerRole,
+  type Agent,
+  type CompanyPortabilityFileEntry,
+  type CompanyPortabilityExportPreviewResult,
+  type CompanyPortabilityExportResult,
+  type CompanyPortabilityManifest,
+  type Project,
 } from "@bench/shared";
 import { useNavigate, useLocation } from "@/lib/router";
 import { useCompany } from "../context/CompanyContext";
@@ -389,10 +391,20 @@ function FrontmatterCard({
 
 // ── Client-side README generation ────────────────────────────────────
 
-const ROLE_LABELS: Record<string, string> = {
-  ceo: "CEO", cto: "CTO", cmo: "CMO", cfo: "CFO", coo: "COO",
-  vp: "VP", manager: "Manager", engineer: "Engineer", agent: "Agent",
+const EXPORT_ROLE_LABELS_EXTRA: Record<string, string> = {
+  vp: "VP",
+  manager: "Manager",
+  agent: "Agent",
+  coo: "COO",
 };
+
+function exportRoleLabel(role: string): string {
+  const key = role.trim().toLowerCase();
+  return (
+    EXPORT_ROLE_LABELS_EXTRA[key] ??
+    COWORKER_ROLE_LABELS[normalizeCoworkerRole(role)]
+  );
+}
 
 /**
  * Regenerate README.md content based on the currently checked files.
@@ -453,7 +465,7 @@ function generateReadmeFromSelection(
     lines.push("| Agent | Role | Reports To |");
     lines.push("|-------|------|------------|");
     for (const agent of agents) {
-      const roleLabel = ROLE_LABELS[agent.role] ?? agent.role;
+      const roleLabel = exportRoleLabel(agent.role);
       const reportsTo = agent.reportsToSlug ?? "\u2014";
       lines.push(`| ${agent.name} | ${roleLabel} | ${reportsTo} |`);
     }

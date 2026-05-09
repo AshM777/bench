@@ -24,9 +24,9 @@ import {
 
 const ORGS: Record<string, OrgNode> = {
   sm: {
-    id: "ceo",
-    name: "CEO",
-    role: "Chief Executive",
+    id: "admin",
+    name: "Admin",
+    role: "Administrator",
     status: "active",
     reports: [
       { id: "eng1", name: "Engineer", role: "Engineering", status: "active", reports: [] },
@@ -34,14 +34,14 @@ const ORGS: Record<string, OrgNode> = {
     ],
   },
   med: {
-    id: "ceo",
-    name: "CEO",
-    role: "Chief Executive",
+    id: "admin",
+    name: "Admin",
+    role: "Administrator",
     status: "active",
     reports: [
       {
-        id: "cto",
-        name: "CTO",
+        id: "eng-lead",
+        name: "Engineering",
         role: "Technology",
         status: "active",
         reports: [
@@ -53,25 +53,23 @@ const ORGS: Record<string, OrgNode> = {
         ],
       },
       {
-        id: "cmo",
-        name: "CMO",
-        role: "Marketing",
+        id: "des1",
+        name: "Designer",
+        role: "Design",
         status: "active",
-        reports: [
-          { id: "des1", name: "Designer", role: "Design", status: "active", reports: [] },
-        ],
+        reports: [],
       },
     ],
   },
   lg: {
-    id: "ceo",
-    name: "CEO",
-    role: "Chief Executive",
+    id: "admin",
+    name: "Admin",
+    role: "Administrator",
     status: "active",
     reports: [
       {
-        id: "cto",
-        name: "CTO",
+        id: "eng-lead",
+        name: "Engineering",
         role: "Technology",
         status: "active",
         reports: [
@@ -82,9 +80,9 @@ const ORGS: Record<string, OrgNode> = {
         ],
       },
       {
-        id: "cmo",
-        name: "CMO",
-        role: "Marketing",
+        id: "design",
+        name: "Design",
+        role: "Product",
         status: "active",
         reports: [
           { id: "des1", name: "Designer", role: "Design", status: "active", reports: [] },
@@ -92,17 +90,8 @@ const ORGS: Record<string, OrgNode> = {
         ],
       },
       {
-        id: "cfo",
-        name: "CFO",
-        role: "Finance",
-        status: "active",
-        reports: [
-          { id: "fin1", name: "Analyst", role: "Finance", status: "active", reports: [] },
-        ],
-      },
-      {
-        id: "coo",
-        name: "COO",
+        id: "ops",
+        name: "Operations",
         role: "Operations",
         status: "active",
         reports: [

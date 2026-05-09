@@ -17,7 +17,7 @@ import { test, expect } from "@playwright/test";
 const SKIP_LLM = process.env.BENCH_E2E_SKIP_LLM !== "false";
 
 const COMPANY_NAME = `E2E-Test-${Date.now()}`;
-const AGENT_NAME = "CEO";
+const AGENT_NAME = "Admin";
 const TASK_TITLE = "E2E test task";
 
 test.describe("Onboarding wizard", () => {
@@ -38,7 +38,7 @@ test.describe("Onboarding wizard", () => {
       page.locator("h3", { hasText: "Create your first agent" })
     ).toBeVisible({ timeout: 30_000 });
 
-    const agentNameInput = page.locator('input[placeholder="CEO"]');
+    const agentNameInput = page.locator('input[placeholder="Admin"]');
     await expect(agentNameInput).toHaveValue(AGENT_NAME);
 
     await expect(
@@ -69,13 +69,13 @@ test.describe("Onboarding wizard", () => {
       );
       expect(agentsAfterCreateRes.ok()).toBe(true);
       const agentsAfterCreate = await agentsAfterCreateRes.json();
-      const ceoAgentAfterCreate = agentsAfterCreate.find(
+      const adminAgentAfterCreate = agentsAfterCreate.find(
         (a: { name: string }) => a.name === AGENT_NAME
       );
-      expect(ceoAgentAfterCreate).toBeTruthy();
+      expect(adminAgentAfterCreate).toBeTruthy();
 
       const disableWakeRes = await page.request.patch(
-        `${baseUrl}/api/agents/${ceoAgentAfterCreate.id}?companyId=${encodeURIComponent(companyAfterAgent.id)}`,
+        `${baseUrl}/api/agents/${adminAgentAfterCreate.id}?companyId=${encodeURIComponent(companyAfterAgent.id)}`,
         {
           data: {
             runtimeConfig: {
@@ -126,15 +126,15 @@ test.describe("Onboarding wizard", () => {
     );
     expect(agentsRes.ok()).toBe(true);
     const agents = await agentsRes.json();
-    const ceoAgent = agents.find(
+    const adminAgent = agents.find(
       (a: { name: string }) => a.name === AGENT_NAME
     );
-    expect(ceoAgent).toBeTruthy();
-    expect(ceoAgent.role).toBe("ceo");
-    expect(ceoAgent.adapterType).not.toBe("process");
+    expect(adminAgent).toBeTruthy();
+    expect(adminAgent.role).toBe("admin");
+    expect(adminAgent.adapterType).not.toBe("process");
 
     const instructionsBundleRes = await page.request.get(
-      `${baseUrl}/api/agents/${ceoAgent.id}/instructions-bundle?companyId=${company.id}`
+      `${baseUrl}/api/agents/${adminAgent.id}/instructions-bundle?companyId=${company.id}`
     );
     expect(instructionsBundleRes.ok()).toBe(true);
     const instructionsBundle = await instructionsBundleRes.json();
@@ -151,9 +151,9 @@ test.describe("Onboarding wizard", () => {
       (i: { title: string }) => i.title === TASK_TITLE
     );
     expect(task).toBeTruthy();
-    expect(task.assigneeAgentId).toBe(ceoAgent.id);
+    expect(task.assigneeAgentId).toBe(adminAgent.id);
     expect(task.description).toContain(
-      "You are the CEO. You set the direction for the company."
+      "You are the Admin. You set the direction for the company."
     );
     expect(task.description).not.toContain("github.com/bench/companies");
 
@@ -169,7 +169,7 @@ test.describe("Onboarding wizard", () => {
       await expect
         .poll(async () => {
           const runsRes = await page.request.get(
-            `${baseUrl}/api/companies/${company.id}/heartbeat-runs?agentId=${ceoAgent.id}`
+            `${baseUrl}/api/companies/${company.id}/heartbeat-runs?agentId=${adminAgent.id}`
           );
           expect(runsRes.ok()).toBe(true);
           const runs = await runsRes.json();

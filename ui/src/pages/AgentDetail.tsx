@@ -43,8 +43,14 @@ import { BudgetPolicyCard } from "../components/BudgetPolicyCard";
 import { PackageFileTree, buildFileTree } from "../components/PackageFileTree";
 import { ScrollToBottom } from "../components/ScrollToBottom";
 import { formatCents, formatDate, relativeTime, formatTokens, visibleRunCostUsd } from "../lib/utils";
+import { timeAgo } from "../lib/timeAgo";
 import { cn } from "../lib/utils";
 import { describeRunRetryState } from "../lib/runRetryState";
+import {
+  BENCH_MANAGER_EMAIL_METADATA_KEY,
+  getBenchManagerEmailFromMetadata,
+  normalizePersonaEmail,
+} from "../lib/manager-scope";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs } from "@/components/ui/tabs";
@@ -74,10 +80,12 @@ import {
   ArrowLeft,
   HelpCircle,
   FolderOpen,
+  Plug,
 } from "lucide-react";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { AgentIcon, AgentIconPicker } from "../components/AgentIconPicker";
 import { RunTranscriptView, type TranscriptMode } from "../components/transcript/RunTranscriptView";
 import {
@@ -911,6 +919,7 @@ export function AgentDetail() {
   if (!urlRunId && !urlTab) {
     return <Navigate to={`/agents/${canonicalAgentRef}/dashboard`} replace />;
   }
+  const peopleManagerEmail = getBenchManagerEmailFromMetadata(agent.metadata);
   const isPendingApproval = agent.status === "pending_approval";
   const showConfigActionBar = (activeView === "configuration" || activeView === "instructions") && (configDirty || configSaving);
 
@@ -933,6 +942,14 @@ export function AgentDetail() {
               {roleLabels[agent.role] ?? agent.role}
               {agent.title ? ` - ${agent.title}` : ""}
             </p>
+            {peopleManagerEmail ? (
+              <p className="text-xs text-muted-foreground truncate mt-1">
+                People manager:{" "}
+                <span className="font-mono text-foreground/90">{peopleManagerEmail}</span>
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground/80 truncate mt-1">No people manager assigned</p>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
@@ -1098,7 +1115,7 @@ export function AgentDetail() {
       )}
 
       {/* View content */}
-      {activeView === "dashboard" && (
+      {activeView === "dashboard" && resolvedCompanyId ? (
         <AgentOverview
           agent={agent}
           runs={heartbeats ?? []}
@@ -1106,8 +1123,9 @@ export function AgentDetail() {
           runtimeState={runtimeState}
           agentId={agent.id}
           agentRouteId={canonicalAgentRef}
+          companyId={resolvedCompanyId}
         />
-      )}
+      ) : null}
 
       {activeView === "instructions" && (
         <PromptsTab
@@ -1266,6 +1284,85 @@ function LatestRunCard({ runs, agentId }: { runs: HeartbeatRun[]; agentId: strin
 
 /* ---- Agent Overview (main single-page view) ---- */
 
+const AGENT_DASHBOARD_ACTIVITY_LIMIT = 80;
+
+function AgentConnectorCatalogHint() {
+  return (
+    <div className="rounded-lg border border-border bg-muted/20 p-4 flex gap-3 items-start">
+      <Plug className="h-5 w-5 shrink-0 text-muted-foreground mt-0.5" />
+      <div className="min-w-0 space-y-2">
+        <p className="text-sm text-muted-foreground">
+          Roll out this coworker against your real stack: open the <span className="text-foreground font-medium">connector directory</span> for{" "}
+          Slack, mail, trackers, docs, auth patterns, and IT-safe checklists (auth, scopes, verification).
+        </p>
+        <Button variant="outline" size="sm" asChild>
+          <Link to="/connectors">Connector directory</Link>
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function AgentDashboardActivityFeed({
+  companyId,
+  agentId,
+  agentRouteId,
+}: {
+  companyId: string;
+  agentId: string;
+  agentRouteId: string;
+}) {
+  const { data, isLoading } = useQuery({
+    queryKey: queryKeys.agents.activityFeed(companyId, agentId, AGENT_DASHBOARD_ACTIVITY_LIMIT),
+    queryFn: () =>
+      agentsApi.activityFeed(companyId, agentId, { limit: AGENT_DASHBOARD_ACTIVITY_LIMIT }),
+  });
+
+  return (
+    <div className="space-y-3">
+      <h3 className="text-sm font-medium">Activity</h3>
+      <p className="text-xs text-muted-foreground">Activity log plus recent runs for this agent.</p>
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">Loading activity…</p>
+      ) : !data?.entries.length ? (
+        <p className="text-sm text-muted-foreground">No recent activity.</p>
+      ) : (
+        <ul className="rounded-lg border border-border bg-card divide-y divide-border">
+          {data.entries.map((entry) => {
+            const runHref =
+              entry.source === "bench_run" && entry.runId
+                ? `/agents/${agentRouteId}/runs/${entry.runId}`
+                : null;
+            const inner = (
+              <>
+                <div className="flex justify-between gap-4 text-xs text-muted-foreground">
+                  <span className="font-mono uppercase tracking-tight">{entry.actionType}</span>
+                  <time dateTime={entry.occurredAt}>{timeAgo(entry.occurredAt)}</time>
+                </div>
+                <p className="text-sm mt-1">{entry.summary}</p>
+              </>
+            );
+            return (
+              <li key={entry.id}>
+                {runHref ? (
+                  <Link
+                    to={runHref}
+                    className="block px-4 py-3 hover:bg-accent/40 transition-colors no-underline text-inherit"
+                  >
+                    {inner}
+                  </Link>
+                ) : (
+                  <div className="px-4 py-3">{inner}</div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function AgentOverview({
   agent,
   runs,
@@ -1273,6 +1370,7 @@ function AgentOverview({
   runtimeState,
   agentId,
   agentRouteId,
+  companyId,
 }: {
   agent: AgentDetailRecord;
   runs: HeartbeatRun[];
@@ -1280,11 +1378,16 @@ function AgentOverview({
   runtimeState?: AgentRuntimeState;
   agentId: string;
   agentRouteId: string;
+  companyId: string;
 }) {
   return (
     <div className="space-y-8">
       {/* Latest Run */}
       <LatestRunCard runs={runs} agentId={agentRouteId} />
+
+      <AgentConnectorCatalogHint />
+
+      <AgentDashboardActivityFeed companyId={companyId} agentId={agentId} agentRouteId={agentRouteId} />
 
       {/* Charts */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1604,13 +1707,23 @@ function ConfigurationTab({
     onSavingChange(isConfigSaving);
   }, [onSavingChange, isConfigSaving]);
 
+  const [managerEmailInput, setManagerEmailInput] = useState(() => {
+    const raw = agent.metadata?.[BENCH_MANAGER_EMAIL_METADATA_KEY];
+    return typeof raw === "string" ? raw : "";
+  });
+
+  useEffect(() => {
+    const raw = agent.metadata?.[BENCH_MANAGER_EMAIL_METADATA_KEY];
+    setManagerEmailInput(typeof raw === "string" ? raw : "");
+  }, [agent.metadata]);
+
   const canCreateAgents = Boolean(agent.permissions?.canCreateAgents);
   const canAssignTasks = Boolean(agent.access?.canAssignTasks);
   const taskAssignSource = agent.access?.taskAssignSource ?? "none";
-  const taskAssignLocked = agent.role === "ceo" || canCreateAgents;
+  const taskAssignLocked = agent.role === "admin" || canCreateAgents;
   const taskAssignHint =
-    taskAssignSource === "ceo_role"
-      ? "Enabled automatically for CEO agents."
+    taskAssignSource === "admin_role"
+      ? "Enabled automatically for Admin coworkers."
       : taskAssignSource === "agent_creator"
         ? "Enabled automatically while this agent can create new agents."
         : taskAssignSource === "explicit_grant"
@@ -1633,6 +1746,49 @@ function ConfigurationTab({
         hideInstructionsFile={hideInstructionsFile}
         sectionLayout="cards"
       />
+
+      <div className="rounded-lg border border-border p-4 space-y-3">
+        <div>
+          <h3 className="text-sm font-medium text-foreground">People manager</h3>
+          <p className="text-xs text-muted-foreground mt-1">
+            Bench matches this email to the signed-in user in <strong>Manager</strong> view (normalized). Leave blank if
+            unassigned.
+          </p>
+        </div>
+        <div className="space-y-2 max-w-md">
+          <Label htmlFor="bench-manager-email" className="text-xs text-muted-foreground">
+            Manager email
+          </Label>
+          <Input
+            id="bench-manager-email"
+            type="email"
+            autoComplete="email"
+            placeholder="people.manager@company.com"
+            value={managerEmailInput}
+            onChange={(e) => setManagerEmailInput(e.target.value)}
+          />
+          {getBenchManagerEmailFromMetadata(agent.metadata) ? (
+            <p className="text-[11px] text-muted-foreground font-mono">
+              Stored normalized: {getBenchManagerEmailFromMetadata(agent.metadata)}
+            </p>
+          ) : null}
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            disabled={isConfigSaving}
+            onClick={() => {
+              const nextMeta: Record<string, unknown> = { ...(agent.metadata ?? {}) };
+              const t = managerEmailInput.trim();
+              if (t) nextMeta[BENCH_MANAGER_EMAIL_METADATA_KEY] = normalizePersonaEmail(t);
+              else delete nextMeta[BENCH_MANAGER_EMAIL_METADATA_KEY];
+              updateAgent.mutate({ metadata: nextMeta });
+            }}
+          >
+            Save manager assignment
+          </Button>
+        </div>
+      </div>
 
       <div>
         <h3 className="text-sm font-medium mb-3">Permissions</h3>

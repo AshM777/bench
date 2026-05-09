@@ -24,8 +24,8 @@ Follows the existing `NewIssueDialog` / `NewProjectDialog` pattern: a `Dialog` c
 |-------|---------|----------|---------|-------|
 | Name | Text input (large, auto-focused) | Yes | -- | e.g. "Alice", "Build Bot" |
 | Title | Text input (subtitle style) | No | -- | e.g. "VP of Engineering" |
-| Role | Chip popover (select) | No | `general` | Values from `AGENT_ROLES`: ceo, cto, cmo, cfo, engineer, designer, pm, qa, devops, researcher, general |
-| Reports To | Chip popover (agent select) | No | -- | Dropdown of existing agents in the company. If this is the first agent, auto-set role to `ceo` and gray out Reports To. Otherwise required unless role is `ceo`. |
+| Role | Chip popover (select) | No | `general` | Values from `COWORKER_ROLES`: admin, security, engineer, designer, pm, qa, devops, researcher, general |
+| Reports To | Chip popover (agent select) | No | -- | Dropdown of existing agents in the company. If this is the first agent, auto-set role to `admin` and gray out Reports To. Otherwise required unless role is `admin`. |
 | Capabilities | Text input | No | -- | Free-text description of what this agent can do |
 
 **Adapter (collapsible section, default open):**
@@ -212,7 +212,7 @@ Shows a flat list of agents with status badge, name, role, title, and budget bar
 **Org Chart view:**
 - Tree layout showing reporting hierarchy
 - Each node shows: agent name, role, status badge
-- CEO at the top, direct reports below, etc.
+- Admin at the top, direct reports below, etc.
 - Uses the `agentsApi.org(companyId)` endpoint which already returns `OrgNode[]`
 - Clicking a node navigates to agent detail
 

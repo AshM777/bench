@@ -10,7 +10,7 @@ const ADMIN_PASSWORD =
   "bench-smoke-password";
 
 const COMPANY_NAME = `Release-Smoke-${Date.now()}`;
-const AGENT_NAME = "CEO";
+const AGENT_NAME = "Admin";
 const TASK_TITLE = "Release smoke task";
 
 async function signIn(page: Page) {
@@ -38,7 +38,7 @@ async function openOnboarding(page: Page) {
 }
 
 test.describe("Docker authenticated onboarding smoke", () => {
-  test("logs in, completes onboarding, and triggers the first CEO run", async ({
+  test("logs in, completes onboarding, and triggers the first Admin run", async ({
     page,
   }) => {
     await signIn(page);
@@ -51,7 +51,7 @@ test.describe("Docker authenticated onboarding smoke", () => {
       page.locator("h3", { hasText: "Create your first agent" })
     ).toBeVisible({ timeout: 10_000 });
 
-    await expect(page.locator('input[placeholder="CEO"]')).toHaveValue(AGENT_NAME);
+    await expect(page.locator('input[placeholder="Admin"]')).toHaveValue(AGENT_NAME);
     await page.getByRole("button", { name: "Next" }).click();
 
     await expect(
@@ -90,10 +90,10 @@ test.describe("Docker authenticated onboarding smoke", () => {
       role: string;
       adapterType: string;
     }>;
-    const ceoAgent = agents.find((entry) => entry.name === AGENT_NAME);
-    expect(ceoAgent).toBeTruthy();
-    expect(ceoAgent!.role).toBe("ceo");
-    expect(ceoAgent!.adapterType).not.toBe("process");
+    const adminAgent = agents.find((entry) => entry.name === AGENT_NAME);
+    expect(adminAgent).toBeTruthy();
+    expect(adminAgent!.role).toBe("admin");
+    expect(adminAgent!.adapterType).not.toBe("process");
 
     const issuesRes = await page.request.get(
       `${baseUrl}/api/companies/${company!.id}/issues`
@@ -106,12 +106,12 @@ test.describe("Docker authenticated onboarding smoke", () => {
     }>;
     const issue = issues.find((entry) => entry.title === TASK_TITLE);
     expect(issue).toBeTruthy();
-    expect(issue!.assigneeAgentId).toBe(ceoAgent!.id);
+    expect(issue!.assigneeAgentId).toBe(adminAgent!.id);
 
     await expect.poll(
       async () => {
         const runsRes = await page.request.get(
-          `${baseUrl}/api/companies/${company!.id}/heartbeat-runs?agentId=${ceoAgent!.id}`
+          `${baseUrl}/api/companies/${company!.id}/heartbeat-runs?agentId=${adminAgent!.id}`
         );
         expect(runsRes.ok()).toBe(true);
         const runs = (await runsRes.json()) as Array<{

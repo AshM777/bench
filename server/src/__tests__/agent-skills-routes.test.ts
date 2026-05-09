@@ -30,6 +30,9 @@ const mockIssueApprovalService = vi.hoisted(() => ({
   linkManyForApproval: vi.fn(),
 }));
 const mockWorkspaceOperationService = vi.hoisted(() => ({}));
+const mockAgentActivityFeedService = vi.hoisted(() => ({
+  list: vi.fn(async () => []),
+}));
 const mockAgentInstructionsService = vi.hoisted(() => ({
   getBundle: vi.fn(),
   readFile: vi.fn(),
@@ -71,6 +74,7 @@ vi.mock("../telemetry.js", () => ({
 }));
 
 vi.mock("../services/index.js", () => ({
+  agentActivityFeedService: () => mockAgentActivityFeedService,
   agentService: () => mockAgentService,
   agentInstructionsService: () => mockAgentInstructionsService,
   accessService: () => mockAccessService,
@@ -105,6 +109,7 @@ function registerModuleMocks() {
   }));
 
   vi.doMock("../services/index.js", () => ({
+    agentActivityFeedService: () => mockAgentActivityFeedService,
     agentService: () => mockAgentService,
     agentInstructionsService: () => mockAgentInstructionsService,
     accessService: () => mockAccessService,
@@ -620,12 +625,12 @@ describe.sequential("agent skill routes", () => {
     expect(mockAgentInstructionsService.materializeManagedBundle).not.toHaveBeenCalled();
   });
 
-  it("materializes the bundled CEO instruction set for default CEO agents", async () => {
+  it("materializes the bundled Admin instruction set for default Admin coworkers", async () => {
     const res = await requestApp(await createApp(), (baseUrl) => request(baseUrl)
       .post("/api/companies/company-1/agents")
       .send({
-        name: "CEO",
-        role: "ceo",
+        name: "Admin",
+        role: "admin",
         adapterType: "claude_local",
         adapterConfig: {},
       }));
@@ -634,20 +639,20 @@ describe.sequential("agent skill routes", () => {
     expect(mockAgentInstructionsService.materializeManagedBundle).toHaveBeenCalledWith(
       expect.objectContaining({
         id: "11111111-1111-4111-8111-111111111111",
-        role: "ceo",
+        role: "admin",
         adapterType: "claude_local",
       }),
       expect.objectContaining({
-        "AGENTS.md": expect.stringContaining("You are the CEO."),
-        "HEARTBEAT.md": expect.stringContaining("CEO Heartbeat Checklist"),
-        "SOUL.md": expect.stringContaining("CEO Persona"),
+        "AGENTS.md": expect.stringContaining("You are the Admin."),
+        "HEARTBEAT.md": expect.stringContaining("Admin Heartbeat Checklist"),
+        "SOUL.md": expect.stringContaining("Admin Persona"),
         "TOOLS.md": expect.stringContaining("# Tools"),
       }),
       { entryFile: "AGENTS.md", replaceExisting: false },
     );
   });
 
-  it("materializes the bundled default instruction set for non-CEO agents with no prompt template", async () => {
+  it("materializes the bundled default instruction set for non-Admin agents with no prompt template", async () => {
     const res = await requestApp(await createApp(), (baseUrl) => request(baseUrl)
       .post("/api/companies/company-1/agents")
       .send({
